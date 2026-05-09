@@ -7,10 +7,10 @@ import lombok.Setter;
 
 import java.io.Serializable;
 
-@Entity
-@Table(name="passwords")
 @Getter
 @Setter
+@Entity
+@Table(name="passwords")
 public class PasswordEntity extends AuditingEntity implements Serializable {
 
     private static final long serialVersionUID = -1L;

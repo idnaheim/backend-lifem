@@ -5,12 +5,19 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+
 @RestController
 @RequestMapping("/expenses")
 @AllArgsConstructor
 public class ExpenseController {
 
     private final ExpenseService expenseService;
+
+    @GetMapping("/runrate")
+    public ResponseEntity getMonthlyExpense(){
+        return new ResponseEntity(expenseService.getRunRateExpenses(), HttpStatus.OK);
+    }
 
     @GetMapping
     public ResponseEntity getAllExpenses() {
@@ -42,6 +49,15 @@ public class ExpenseController {
             return new ResponseEntity(HttpStatus.NO_CONTENT);
         }
         return new ResponseEntity(HttpStatus.NOT_FOUND);
+    }
+
+    @PostMapping("/{id}/pay")
+    public ResponseEntity payExpense(@PathVariable long id, @RequestParam long accountId, @RequestParam BigDecimal amount) {
+        try {
+            return new ResponseEntity(expenseService.payExpense(id, accountId, amount), HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
     }
 
 }

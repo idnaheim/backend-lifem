@@ -34,20 +34,14 @@ public class ExpenseService {
         List<ExpenseEntity> expenses = expenseRepository.findAll();
         Map<String, BigDecimal> result = new HashMap<>();
 
-        BigDecimal weeklyExpenses = expenses.stream()
-                .filter(expense -> expense.getFrequency() == ExpenseFrequency.WEEKLY)
-                .map(ExpenseEntity::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal monthlyExpenses = expenses.stream()
                 .filter(expense -> expense.getFrequency() == ExpenseFrequency.MONTHLY)
                 .map(ExpenseEntity::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .add(weeklyExpenses.multiply(BigDecimal.valueOf(4)));
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal annualExpenses = monthlyExpenses.multiply(BigDecimal.valueOf(12));
 
-        result.put("weekly", weeklyExpenses);
         result.put("monthly", monthlyExpenses);
         result.put("annually", annualExpenses);
 

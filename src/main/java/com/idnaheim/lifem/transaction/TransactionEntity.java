@@ -5,6 +5,7 @@ import com.idnaheim.lifem.enums.AccountCategory;
 import com.idnaheim.lifem.enums.TransactionCategory;
 import com.idnaheim.lifem.enums.TransactionType;
 import com.idnaheim.lifem.expense.ExpenseEntity;
+import com.idnaheim.lifem.income.IncomeEntity;
 import com.idnaheim.lifem.utilities.AuditingEntity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
@@ -38,6 +39,10 @@ public class TransactionEntity extends AuditingEntity implements Serializable {
     @ManyToOne
     @JsonIgnore
     private ExpenseEntity expense;
+
+    @ManyToOne
+    @JsonIgnore
+    private IncomeEntity income;
 
     @Enumerated(EnumType.STRING)
     private TransactionCategory category;

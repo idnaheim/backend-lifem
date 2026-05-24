@@ -80,8 +80,8 @@ public class ExpenseService {
                 end = endOfQuarter.atTime(LocalTime.MAX);
                 break;
             case ONE_TIME:
-                start = LocalDateTime.MIN;
-                end = LocalDateTime.MAX;
+                start = LocalDateTime.of(2000, 1, 1, 0, 0);
+                end = LocalDateTime.of(2099, 12, 31, 23, 59, 59);
                 break;
             default:
                 // MONTHLY
@@ -158,25 +158,28 @@ public class ExpenseService {
     }
 
     @Transactional
-    public TransactionEntity payExpense(long expenseId, long accountId, BigDecimal amount) {
+    public TransactionEntity payExpense(long expenseId, long accountId, BigDecimal amount, String remarks) {
         ExpenseEntity expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new RuntimeException("Expense not found"));
 
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
 
+        // Always deduct using absolute value so negative amounts don't increase balance
+        BigDecimal deductionAmount = amount.abs();
+
         // Deduct from account balance
-        double newBalance = account.getBalance() - amount.doubleValue();
+        double newBalance = account.getBalance() - deductionAmount.doubleValue();
         account.setBalance(newBalance);
         accountRepository.save(account);
 
-        // Create transaction record
+        // Create transaction record with negative amount
         TransactionEntity transaction = new TransactionEntity();
         transaction.setAccount(account);
         transaction.setExpense(expense);
         transaction.setType(TransactionType.EXPENSE);
-        transaction.setAmount(amount);
-        transaction.setRemarks("Payment for: " + expense.getName());
+        transaction.setAmount(deductionAmount.negate());
+        transaction.setRemarks(remarks);
 
         return transactionRepository.save(transaction);
     }

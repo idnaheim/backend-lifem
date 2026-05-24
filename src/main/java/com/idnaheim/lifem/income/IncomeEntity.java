@@ -3,6 +3,7 @@ package com.idnaheim.lifem.income;
 import com.idnaheim.lifem.account.AccountEntity;
 import com.idnaheim.lifem.enums.IncomeCategory;
 import com.idnaheim.lifem.enums.IncomeFrequency;
+import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.utilities.AuditingEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -11,6 +12,7 @@ import lombok.Setter;
 import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Getter
 @Setter
@@ -43,5 +45,8 @@ public class IncomeEntity extends AuditingEntity implements Serializable {
     private boolean isActive;
 
     private String remarks;
+
+    @Transient
+    private List<TransactionEntity> transactions;
 
 }

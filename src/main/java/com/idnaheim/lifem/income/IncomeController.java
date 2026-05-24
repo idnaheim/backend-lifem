@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+
 @RestController
 @RequestMapping("/incomes")
 @AllArgsConstructor
@@ -47,6 +49,15 @@ public class IncomeController {
             return new ResponseEntity(HttpStatus.NO_CONTENT);
         }
         return new ResponseEntity(HttpStatus.NOT_FOUND);
+    }
+
+    @PostMapping("/{id}/receive")
+    public ResponseEntity receiveIncome(@PathVariable long id, @RequestParam long accountId, @RequestParam BigDecimal amount, @RequestParam(required = false) String remarks) {
+        try {
+            return new ResponseEntity(incomeService.receiveIncome(id, accountId, amount, remarks), HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
     }
 
 }

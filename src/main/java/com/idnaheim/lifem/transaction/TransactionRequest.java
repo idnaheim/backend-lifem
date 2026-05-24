@@ -12,6 +12,7 @@ public class TransactionRequest {
 
     private long accountId;
     private Long expenseId;
+    private Long incomeId;
     private BigDecimal amount;
     private TransactionCategory category;
     private String remarks;

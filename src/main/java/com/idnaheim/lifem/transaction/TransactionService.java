@@ -5,6 +5,8 @@ import com.idnaheim.lifem.account.AccountRepository;
 import com.idnaheim.lifem.enums.TransactionType;
 import com.idnaheim.lifem.expense.ExpenseEntity;
 import com.idnaheim.lifem.expense.ExpenseRepository;
+import com.idnaheim.lifem.income.IncomeEntity;
+import com.idnaheim.lifem.income.IncomeRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private final ExpenseRepository expenseRepository;
+    private final IncomeRepository incomeRepository;
 
     public List<TransactionEntity> getAllTransactions() {
         return transactionRepository.findAll();
@@ -48,6 +51,14 @@ public class TransactionService {
                 existing.setExpense(expense);
             } else {
                 existing.setExpense(null);
+            }
+
+            if (request.getIncomeId() != null) {
+                IncomeEntity income = incomeRepository.findById(request.getIncomeId())
+                        .orElseThrow(() -> new IllegalArgumentException("Income not found: " + request.getIncomeId()));
+                existing.setIncome(income);
+            } else {
+                existing.setIncome(null);
             }
 
             return transactionRepository.save(existing);
@@ -103,6 +114,12 @@ public class TransactionService {
             transaction.setExpense(expense);
         }
 
+        if (request.getIncomeId() != null) {
+            IncomeEntity income = incomeRepository.findById(request.getIncomeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Income not found: " + request.getIncomeId()));
+            transaction.setIncome(income);
+        }
+
         return transactionRepository.save(transaction);
     }
 
@@ -126,6 +143,12 @@ public class TransactionService {
         transaction.setCategory(request.getCategory());
         transaction.setAmount(request.getAmount());
         transaction.setRemarks(request.getRemarks());
+
+        if (request.getIncomeId() != null) {
+            IncomeEntity income = incomeRepository.findById(request.getIncomeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Income not found: " + request.getIncomeId()));
+            transaction.setIncome(income);
+        }
 
         if (request.getExpenseId() != null) {
             ExpenseEntity expense = expenseRepository.findById(request.getExpenseId())

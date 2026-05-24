@@ -52,9 +52,9 @@ public class ExpenseController {
     }
 
     @PostMapping("/{id}/pay")
-    public ResponseEntity payExpense(@PathVariable long id, @RequestParam long accountId, @RequestParam BigDecimal amount) {
+    public ResponseEntity payExpense(@PathVariable long id, @RequestParam long accountId, @RequestParam BigDecimal amount, @RequestParam(required = false) String remarks) {
         try {
-            return new ResponseEntity(expenseService.payExpense(id, accountId, amount), HttpStatus.OK);
+            return new ResponseEntity(expenseService.payExpense(id, accountId, amount, remarks), HttpStatus.OK);
         } catch (RuntimeException e) {
             return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }

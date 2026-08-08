@@ -1,17 +1,14 @@
-# Build stage
-FROM maven:3.9-eclipse-temurin-21 AS build
-WORKDIR /app
-COPY pom.xml .
-COPY .mvn .mvn
-COPY mvnw .
-RUN chmod +x mvnw
-RUN ./mvnw dependency:go-offline -B
-COPY src ./src
-RUN ./mvnw package -DskipTests -B
+# Use an official lightweight JDK runtime base image
+FROM eclipse-temurin:21-jre-jammy
 
-# Runtime stage
-FROM eclipse-temurin:21-jre
+# Set the internal working directory
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+
+# Copy the built JAR file from your build directory into the container
+COPY target/*.jar app.jar
+
+# Expose the port your Spring Boot app runs on (default is 8080)
 EXPOSE 8080
+
+# Execute the application
 ENTRYPOINT ["java", "-jar", "app.jar"]

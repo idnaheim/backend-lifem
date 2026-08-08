@@ -169,8 +169,7 @@ public class ExpenseService {
         BigDecimal deductionAmount = amount.abs();
 
         // Deduct from account balance
-        double newBalance = account.getBalance() - deductionAmount.doubleValue();
-        account.setBalance(newBalance);
+        account.setBalance(account.getBalance().subtract(deductionAmount));
         accountRepository.save(account);
 
         // Create transaction record with negative amount

@@ -62,12 +62,12 @@ public class AccountService {
         AccountEntity toAccount = accountRepository.findById(toAccountId)
                 .orElseThrow(() -> new IllegalArgumentException("Destination account not found: " + toAccountId));
 
-        if (fromAccount.getBalance() < amount) {
+        if (fromAccount.getBalance().compareTo(BigDecimal.valueOf(amount)) < 0) {
             throw new IllegalArgumentException("Insufficient balance in source account");
         }
 
-        fromAccount.setBalance(fromAccount.getBalance() - amount);
-        toAccount.setBalance(toAccount.getBalance() + amount);
+        fromAccount.setBalance(fromAccount.getBalance().subtract(BigDecimal.valueOf(amount)));
+        toAccount.setBalance(toAccount.getBalance().add(BigDecimal.valueOf(amount)));
 
         accountRepository.save(fromAccount);
         accountRepository.save(toAccount);

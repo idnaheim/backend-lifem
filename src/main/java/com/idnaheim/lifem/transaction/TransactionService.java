@@ -77,7 +77,7 @@ public class TransactionService {
                 // Subtract the transaction amount to reverse it
                 // (expense amounts are negative, so subtracting a negative adds back;
                 //  income amounts are positive, so subtracting a positive deducts it)
-                account.setBalance(account.getBalance() - transaction.getAmount().doubleValue());
+                account.setBalance(account.getBalance().subtract(transaction.getAmount()));
                 accountRepository.save(account);
             }
 
@@ -97,7 +97,7 @@ public class TransactionService {
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + request.getAccountId()));
 
         // Deduct from account balance
-        account.setBalance(account.getBalance() - request.getAmount().doubleValue());
+        account.setBalance(account.getBalance().subtract(request.getAmount()));
         accountRepository.save(account);
 
         // Create transaction record
@@ -133,7 +133,7 @@ public class TransactionService {
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + request.getAccountId()));
 
         // Add to account balance
-        account.setBalance(account.getBalance() + request.getAmount().doubleValue());
+        account.setBalance(account.getBalance().add(request.getAmount()));
         accountRepository.save(account);
 
         // Create transaction record

@@ -147,8 +147,7 @@ public class IncomeService {
                 .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
 
         // Add to account balance
-        double newBalance = account.getBalance() + amount.doubleValue();
-        account.setBalance(newBalance);
+        account.setBalance(account.getBalance().add(amount));
         accountRepository.save(account);
 
         // Create transaction record

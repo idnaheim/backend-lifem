@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 
 @Getter
@@ -26,7 +27,7 @@ public class AccountEntity extends AuditingEntity implements Serializable {
 
     private String name;
 
-    private double balance;
+    private BigDecimal balance;
 
     @Enumerated(EnumType.STRING)
     private AccountCategory category;

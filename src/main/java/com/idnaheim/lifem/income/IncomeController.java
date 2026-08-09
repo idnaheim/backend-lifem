@@ -1,5 +1,6 @@
 package com.idnaheim.lifem.income;
 
+import com.idnaheim.lifem.utilities.ApiResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,48 +16,53 @@ public class IncomeController {
     private final IncomeService incomeService;
 
     @GetMapping
-    public ResponseEntity getAllIncomes() {
-        return new ResponseEntity(incomeService.getAllIncomes(), HttpStatus.OK);
+    public ResponseEntity<ApiResponse<?>> getAllIncomes() {
+        return ResponseEntity.ok(ApiResponse.success(incomeService.getAllIncomes()));
     }
 
     @GetMapping("/active")
-    public ResponseEntity getActiveIncomes() {
-        return new ResponseEntity(incomeService.getActiveIncomes(), HttpStatus.OK);
+    public ResponseEntity<ApiResponse<?>> getActiveIncomes() {
+        return ResponseEntity.ok(ApiResponse.success(incomeService.getActiveIncomes()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity getIncomeById(@PathVariable long id) {
+    public ResponseEntity<ApiResponse<?>> getIncomeById(@PathVariable long id) {
         return incomeService.getIncomeById(id)
-                .map(income -> new ResponseEntity(income, HttpStatus.OK))
-                .orElse(new ResponseEntity(HttpStatus.NOT_FOUND));
+                .<ResponseEntity<ApiResponse<?>>>map(income -> ResponseEntity.ok(ApiResponse.success(income)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }
 
     @PostMapping
-    public ResponseEntity createIncome(@RequestBody IncomeRequest request) {
-        return new ResponseEntity(incomeService.createIncome(request), HttpStatus.CREATED);
+    public ResponseEntity<ApiResponse<?>> createIncome(@RequestBody IncomeRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created(incomeService.createIncome(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity updateIncome(@PathVariable long id, @RequestBody IncomeRequest request) {
+    public ResponseEntity<ApiResponse<?>> updateIncome(@PathVariable long id, @RequestBody IncomeRequest request) {
         return incomeService.updateIncome(id, request)
-                .map(updated -> new ResponseEntity(updated, HttpStatus.OK))
-                .orElse(new ResponseEntity(HttpStatus.NOT_FOUND));
+                .<ResponseEntity<ApiResponse<?>>>map(updated -> ResponseEntity.ok(ApiResponse.success(updated)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity deleteIncome(@PathVariable long id) {
+    public ResponseEntity<ApiResponse<?>> deleteIncome(@PathVariable long id) {
         if (incomeService.deleteIncome(id)) {
-            return new ResponseEntity(HttpStatus.NO_CONTENT);
+            return ResponseEntity.ok(ApiResponse.success(204, "Income deleted successfully", null));
         }
-        return new ResponseEntity(HttpStatus.NOT_FOUND);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound());
     }
 
     @PostMapping("/{id}/receive")
-    public ResponseEntity receiveIncome(@PathVariable long id, @RequestParam long accountId, @RequestParam BigDecimal amount, @RequestParam(required = false) String remarks) {
+    public ResponseEntity<ApiResponse<?>> receiveIncome(
+            @PathVariable long id,
+            @RequestParam long accountId,
+            @RequestParam BigDecimal amount,
+            @RequestParam(required = false) String remarks) {
         try {
-            return new ResponseEntity(incomeService.receiveIncome(id, accountId, amount, remarks), HttpStatus.OK);
+            return ResponseEntity.ok(ApiResponse.success(incomeService.receiveIncome(id, accountId, amount, remarks)));
         } catch (RuntimeException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.badRequest(e.getMessage()));
         }
     }
 

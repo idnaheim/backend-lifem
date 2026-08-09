@@ -1,4 +1,4 @@
-package com.idnaheim.lifem.config;
+package com.idnaheim.lifem.utilities;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 

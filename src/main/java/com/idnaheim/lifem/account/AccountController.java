@@ -1,5 +1,6 @@
 package com.idnaheim.lifem.account;
 
+import com.idnaheim.lifem.utilities.ApiResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,44 +14,45 @@ public class AccountController {
     private final AccountService accountService;
 
     @GetMapping
-    public ResponseEntity getAllAccounts() {
-        return new ResponseEntity(accountService.getAllAccounts(), HttpStatus.OK);
+    public ResponseEntity<ApiResponse<?>> getAllAccounts() {
+        return ResponseEntity.ok(ApiResponse.success(accountService.getAllAccounts()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity getAccountById(@PathVariable long id) {
+    public ResponseEntity<ApiResponse<?>> getAccountById(@PathVariable long id) {
         return accountService.getAccountById(id)
-                .map(account -> new ResponseEntity(account, HttpStatus.OK))
-                .orElse(new ResponseEntity(HttpStatus.NOT_FOUND));
+                .<ResponseEntity<ApiResponse<?>>>map(account -> ResponseEntity.ok(ApiResponse.success(account)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }
 
     @PostMapping
-    public ResponseEntity createAccount(@RequestBody AccountEntity account) {
-        return new ResponseEntity(accountService.createAccount(account), HttpStatus.CREATED);
+    public ResponseEntity<ApiResponse<?>> createAccount(@RequestBody AccountEntity account) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created(accountService.createAccount(account)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity updateAccount(@PathVariable long id, @RequestBody AccountEntity account) {
+    public ResponseEntity<ApiResponse<?>> updateAccount(@PathVariable long id, @RequestBody AccountEntity account) {
         return accountService.updateAccount(id, account)
-                .map(updated -> new ResponseEntity(updated, HttpStatus.OK))
-                .orElse(new ResponseEntity(HttpStatus.NOT_FOUND));
+                .<ResponseEntity<ApiResponse<?>>>map(updated -> ResponseEntity.ok(ApiResponse.success(updated)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity deleteAccount(@PathVariable long id) {
+    public ResponseEntity<ApiResponse<?>> deleteAccount(@PathVariable long id) {
         if (accountService.deleteAccount(id)) {
-            return new ResponseEntity(HttpStatus.NO_CONTENT);
+            return ResponseEntity.ok(ApiResponse.success(204, "Account deleted successfully", null));
         }
-        return new ResponseEntity(HttpStatus.NOT_FOUND);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound());
     }
 
     @PostMapping("/transfer")
-    public ResponseEntity transfer(@RequestBody TransferRequest request) {
+    public ResponseEntity<ApiResponse<?>> transfer(@RequestBody TransferRequest request) {
         try {
             accountService.transfer(request.getFromAccountId(), request.getToAccountId(), request.getAmount());
-            return new ResponseEntity("Transfer successful", HttpStatus.OK);
+            return ResponseEntity.ok(ApiResponse.success(200, "Transfer successful", null));
         } catch (IllegalArgumentException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.badRequest(e.getMessage()));
         }
     }
 

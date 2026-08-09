@@ -1,6 +1,6 @@
 package com.idnaheim.lifem.events;
 
-import com.idnaheim.lifem.config.ApiResponse;
+import com.idnaheim.lifem.utilities.ApiResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,60 +15,35 @@ public class EventController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<?>> getAllEvents() {
-        return new ResponseEntity<>(
-            ApiResponse.success(200, eventService.getAllEvents()),
-            HttpStatus.OK
-        );
+        return ResponseEntity.ok(ApiResponse.success(eventService.getAllEvents()));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<?>> getEventById(@PathVariable long id) {
-        var response = eventService.getEventById(id)
-                .map(event -> new ResponseEntity(
-                    ApiResponse.success(200, event),
-                    HttpStatus.OK
-                ))
-                .orElse(new ResponseEntity(
-                    ApiResponse.notFound(),
-                    HttpStatus.NOT_FOUND
-                ));
-        return response;
+        return eventService.getEventById(id)
+                .<ResponseEntity<ApiResponse<?>>>map(event -> ResponseEntity.ok(ApiResponse.success(event)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<?>> createEvent(@RequestBody EventEntity event) {
-        return new ResponseEntity<>(
-            ApiResponse.created(eventService.createEvent(event)),
-            HttpStatus.CREATED
-        );
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created(eventService.createEvent(event)));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<?>> updateEvent(@PathVariable long id, @RequestBody EventEntity event) {
-        var response = eventService.updateEvent(id, event)
-                .map(updated -> new ResponseEntity(
-                    ApiResponse.success(200, updated),
-                    HttpStatus.OK
-                ))
-                .orElse(new ResponseEntity(
-                    ApiResponse.notFound(),
-                    HttpStatus.NOT_FOUND
-                ));
-        return response;
+        return eventService.updateEvent(id, event)
+                .<ResponseEntity<ApiResponse<?>>>map(updated -> ResponseEntity.ok(ApiResponse.success(updated)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<?>> deleteEvent(@PathVariable long id) {
         if (eventService.deleteEvent(id)) {
-            return new ResponseEntity<>(
-                ApiResponse.success(204, "Event deleted successfully", null),
-                HttpStatus.NO_CONTENT
-            );
+            return ResponseEntity.ok(ApiResponse.success(204, "Event deleted successfully", null));
         }
-        return new ResponseEntity<>(
-            ApiResponse.notFound(),
-            HttpStatus.NOT_FOUND
-        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound());
     }
 
 }

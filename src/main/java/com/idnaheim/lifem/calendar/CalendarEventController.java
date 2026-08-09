@@ -1,5 +1,6 @@
 package com.idnaheim.lifem.calendar;
 
+import com.idnaheim.lifem.utilities.ApiResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,40 +16,41 @@ public class CalendarEventController {
     private final CalendarEventService calendarEventService;
 
     @GetMapping
-    public ResponseEntity getAllEvents() {
-        return new ResponseEntity(calendarEventService.getAllEvents(), HttpStatus.OK);
+    public ResponseEntity<ApiResponse<?>> getAllEvents() {
+        return ResponseEntity.ok(ApiResponse.success(calendarEventService.getAllEvents()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity getEventById(@PathVariable long id) {
+    public ResponseEntity<ApiResponse<?>> getEventById(@PathVariable long id) {
         return calendarEventService.getEventById(id)
-                .map(event -> new ResponseEntity(event, HttpStatus.OK))
-                .orElse(new ResponseEntity(HttpStatus.NOT_FOUND));
+                .<ResponseEntity<ApiResponse<?>>>map(event -> ResponseEntity.ok(ApiResponse.success(event)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }
 
     @GetMapping("/range")
-    public ResponseEntity getEventsBetween(@RequestParam Instant start, @RequestParam Instant end) {
-        return new ResponseEntity(calendarEventService.getEventsBetween(start, end), HttpStatus.OK);
+    public ResponseEntity<ApiResponse<?>> getEventsBetween(@RequestParam Instant start, @RequestParam Instant end) {
+        return ResponseEntity.ok(ApiResponse.success(calendarEventService.getEventsBetween(start, end)));
     }
 
     @PostMapping
-    public ResponseEntity createEvent(@RequestBody CalendarEventEntity event) {
-        return new ResponseEntity(calendarEventService.createEvent(event), HttpStatus.CREATED);
+    public ResponseEntity<ApiResponse<?>> createEvent(@RequestBody CalendarEventEntity event) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created(calendarEventService.createEvent(event)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity updateEvent(@PathVariable long id, @RequestBody CalendarEventEntity event) {
+    public ResponseEntity<ApiResponse<?>> updateEvent(@PathVariable long id, @RequestBody CalendarEventEntity event) {
         return calendarEventService.updateEvent(id, event)
-                .map(updated -> new ResponseEntity(updated, HttpStatus.OK))
-                .orElse(new ResponseEntity(HttpStatus.NOT_FOUND));
+                .<ResponseEntity<ApiResponse<?>>>map(updated -> ResponseEntity.ok(ApiResponse.success(updated)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity deleteEvent(@PathVariable long id) {
+    public ResponseEntity<ApiResponse<?>> deleteEvent(@PathVariable long id) {
         if (calendarEventService.deleteEvent(id)) {
-            return new ResponseEntity(HttpStatus.NO_CONTENT);
+            return ResponseEntity.ok(ApiResponse.success(204, "Event deleted successfully", null));
         }
-        return new ResponseEntity(HttpStatus.NOT_FOUND);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound());
     }
 
 }

@@ -1,5 +1,6 @@
 package com.idnaheim.lifem.transaction;
 
+import com.idnaheim.lifem.utilities.ApiResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,52 +14,55 @@ public class TransactionController {
     private final TransactionService transactionService;
 
     @GetMapping
-    public ResponseEntity getAllTransactions() {
-        return new ResponseEntity(transactionService.getAllTransactions(), HttpStatus.OK);
+    public ResponseEntity<ApiResponse<?>> getAllTransactions() {
+        return ResponseEntity.ok(ApiResponse.success(transactionService.getAllTransactions()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity getTransactionById(@PathVariable long id) {
+    public ResponseEntity<ApiResponse<?>> getTransactionById(@PathVariable long id) {
         return transactionService.getTransactionById(id)
-                .map(transaction -> new ResponseEntity(transaction, HttpStatus.OK))
-                .orElse(new ResponseEntity(HttpStatus.NOT_FOUND));
+                .<ResponseEntity<ApiResponse<?>>>map(transaction -> ResponseEntity.ok(ApiResponse.success(transaction)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }
 
     @PostMapping
-    public ResponseEntity createTransaction(@RequestBody TransactionEntity transaction) {
-        return new ResponseEntity(transactionService.createTransaction(transaction), HttpStatus.CREATED);
+    public ResponseEntity<ApiResponse<?>> createTransaction(@RequestBody TransactionEntity transaction) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created(transactionService.createTransaction(transaction)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity updateTransaction(@PathVariable long id, @RequestBody TransactionRequest request) {
+    public ResponseEntity<ApiResponse<?>> updateTransaction(@PathVariable long id, @RequestBody TransactionRequest request) {
         return transactionService.updateTransaction(id, request)
-                .map(updated -> new ResponseEntity(updated, HttpStatus.OK))
-                .orElse(new ResponseEntity(HttpStatus.NOT_FOUND));
+                .<ResponseEntity<ApiResponse<?>>>map(updated -> ResponseEntity.ok(ApiResponse.success(updated)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity deleteTransaction(@PathVariable long id) {
+    public ResponseEntity<ApiResponse<?>> deleteTransaction(@PathVariable long id) {
         if (transactionService.deleteTransaction(id)) {
-            return new ResponseEntity(HttpStatus.NO_CONTENT);
+            return ResponseEntity.ok(ApiResponse.success(204, "Transaction deleted successfully", null));
         }
-        return new ResponseEntity(HttpStatus.NOT_FOUND);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound());
     }
 
     @PostMapping("/expense")
-    public ResponseEntity recordExpense(@RequestBody TransactionRequest request) {
+    public ResponseEntity<ApiResponse<?>> recordExpense(@RequestBody TransactionRequest request) {
         try {
-            return new ResponseEntity(transactionService.recordExpense(request), HttpStatus.CREATED);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.created(transactionService.recordExpense(request)));
         } catch (IllegalArgumentException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.badRequest(e.getMessage()));
         }
     }
 
     @PostMapping("/income")
-    public ResponseEntity recordIncome(@RequestBody TransactionRequest request) {
+    public ResponseEntity<ApiResponse<?>> recordIncome(@RequestBody TransactionRequest request) {
         try {
-            return new ResponseEntity(transactionService.recordIncome(request), HttpStatus.CREATED);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.created(transactionService.recordIncome(request)));
         } catch (IllegalArgumentException e) {
-            return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.badRequest(e.getMessage()));
         }
     }
 

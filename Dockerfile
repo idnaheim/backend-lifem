@@ -1,14 +1,26 @@
-# Use an official lightweight JDK runtime base image
+# ── Stage 1: Build ────────────────────────────────────────────────────────────
+FROM eclipse-temurin:21-jdk-jammy AS builder
+
+WORKDIR /build
+
+# Copy Maven wrapper and POM first for layer caching
+COPY mvnw mvnw.cmd pom.xml ./
+COPY .mvn .mvn
+
+# Download dependencies (cached unless pom.xml changes)
+RUN ./mvnw dependency:go-offline -q
+
+# Copy source and build
+COPY src ./src
+RUN ./mvnw clean package -DskipTests -q
+
+# ── Stage 2: Runtime ───────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-jammy
 
-# Set the internal working directory
 WORKDIR /app
 
-# Copy the built JAR file from your build directory into the container
-COPY target/*.jar app.jar
+COPY --from=builder /build/target/*.jar app.jar
 
-# Expose the port your Spring Boot app runs on (default is 8080)
 EXPOSE 8080
 
-# Execute the application
 ENTRYPOINT ["java", "-jar", "app.jar"]

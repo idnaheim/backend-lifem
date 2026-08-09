@@ -7,6 +7,9 @@ WORKDIR /build
 COPY mvnw mvnw.cmd pom.xml ./
 COPY .mvn .mvn
 
+# Ensure mvnw is executable (permissions may be lost on Windows checkouts)
+RUN chmod +x mvnw
+
 # Download dependencies (cached unless pom.xml changes)
 RUN ./mvnw dependency:go-offline -q
 

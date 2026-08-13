@@ -7,6 +7,8 @@ import com.idnaheim.lifem.expense.ExpenseEntity;
 import com.idnaheim.lifem.expense.ExpenseRepository;
 import com.idnaheim.lifem.income.IncomeEntity;
 import com.idnaheim.lifem.income.IncomeRepository;
+import com.idnaheim.lifem.messaging.TransactionEvent;
+import com.idnaheim.lifem.messaging.TransactionEventProducer;
 import lombok.AllArgsConstructor;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,7 @@ public class TransactionService {
     private final ExpenseRepository expenseRepository;
     private final IncomeRepository incomeRepository;
     private final CacheManager cacheManager;
+    private final TransactionEventProducer transactionEventProducer;
 
     public List<TransactionEntity> getAllTransactions() {
         return transactionRepository.findAll();
@@ -130,7 +133,9 @@ public class TransactionService {
             transaction.setIncome(income);
         }
 
-        return transactionRepository.save(transaction);
+        TransactionEntity saved = transactionRepository.save(transaction);
+        transactionEventProducer.publish(TransactionEvent.fromEntity(saved));
+        return saved;
     }
 
     @Transactional
@@ -170,7 +175,9 @@ public class TransactionService {
             transaction.setExpense(expense);
         }
 
-        return transactionRepository.save(transaction);
+        TransactionEntity saved = transactionRepository.save(transaction);
+        transactionEventProducer.publish(TransactionEvent.fromEntity(saved));
+        return saved;
     }
 
 }

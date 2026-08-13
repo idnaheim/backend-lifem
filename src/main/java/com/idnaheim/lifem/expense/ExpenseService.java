@@ -7,6 +7,7 @@ import com.idnaheim.lifem.enums.TransactionType;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.transaction.TransactionRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,7 @@ public class ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
+    private final CacheManager cacheManager;
 
     public Map<String, BigDecimal> getRunRateExpenses() {
         List<ExpenseEntity> expenses = expenseRepository.findAll();
@@ -171,6 +173,10 @@ public class ExpenseService {
         // Deduct from account balance
         account.setBalance(account.getBalance().subtract(deductionAmount));
         accountRepository.save(account);
+
+        // Evict account caches since balance changed
+        cacheManager.getCache("accounts").clear();
+        cacheManager.getCache("accountById").evict(accountId);
 
         // Create transaction record with negative amount
         TransactionEntity transaction = new TransactionEntity();

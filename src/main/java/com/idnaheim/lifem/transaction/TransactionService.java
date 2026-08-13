@@ -8,6 +8,7 @@ import com.idnaheim.lifem.expense.ExpenseRepository;
 import com.idnaheim.lifem.income.IncomeEntity;
 import com.idnaheim.lifem.income.IncomeRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ public class TransactionService {
     private final AccountRepository accountRepository;
     private final ExpenseRepository expenseRepository;
     private final IncomeRepository incomeRepository;
+    private final CacheManager cacheManager;
 
     public List<TransactionEntity> getAllTransactions() {
         return transactionRepository.findAll();
@@ -79,6 +81,10 @@ public class TransactionService {
                 //  income amounts are positive, so subtracting a positive deducts it)
                 account.setBalance(account.getBalance().subtract(transaction.getAmount()));
                 accountRepository.save(account);
+
+                // Evict account caches since balance changed
+                cacheManager.getCache("accounts").clear();
+                cacheManager.getCache("accountById").evict(account.getId());
             }
 
             transactionRepository.deleteById(id);
@@ -99,6 +105,10 @@ public class TransactionService {
         // Deduct from account balance
         account.setBalance(account.getBalance().subtract(request.getAmount()));
         accountRepository.save(account);
+
+        // Evict account caches since balance changed
+        cacheManager.getCache("accounts").clear();
+        cacheManager.getCache("accountById").evict(request.getAccountId());
 
         // Create transaction record
         TransactionEntity transaction = new TransactionEntity();
@@ -135,6 +145,10 @@ public class TransactionService {
         // Add to account balance
         account.setBalance(account.getBalance().add(request.getAmount()));
         accountRepository.save(account);
+
+        // Evict account caches since balance changed
+        cacheManager.getCache("accounts").clear();
+        cacheManager.getCache("accountById").evict(request.getAccountId());
 
         // Create transaction record
         TransactionEntity transaction = new TransactionEntity();

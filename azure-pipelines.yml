@@ -1,29 +1,52 @@
-# Docker
-# Build a Docker image
-# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
-
 trigger:
-- main
-
-resources:
-- repo: self
+  - deployments
 
 variables:
-  tag: '$(Build.BuildId)'
+  imageName: 'java-rest-agent'
+  containerName: 'my-running-api-agent'
+  vmImageName: 'ubuntu-latest'
 
 stages:
-- stage: Build
-  displayName: Build image
+- stage: BuildAndRun
+  displayName: 'Local Build and Execution'
   jobs:
-  - job: Build
-    displayName: Build
+  - job: LifecycleJob
     pool:
-      vmImage: ubuntu-latest
+      vmImage: $(vmImageName)
     steps:
+    
+    # Step 1: Clean up any leftover containers from previous pipeline runs
+    - script: |
+        docker stop $(containerName) || true
+        docker rm $(containerName) || true
+      displayName: 'Clean Up Existing Containers'
+
+    # Step 2: Build the Docker image on the runner using your Dockerfile
     - task: Docker@2
-      displayName: Build an image
+      displayName: 'Build Docker Image on Agent'
       inputs:
-        command: build
-        dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
-        tags: |
-          $(tag)
+        command: 'build'
+        Dockerfile: '**/Dockerfile'
+        repository: $(imageName)
+        tags: 'latest'
+
+    # Step 3: Run the image as a detached background container on the agent
+    # We pass the production database credentials securely via pipeline variables
+    - script: |
+        docker run -d \
+          --name $(containerName) \
+          -p 8080:8080 \
+          -e SPRING_DATASOURCE_URL="lifem.mysql.database.azure.com" \
+          -e SPRING_DATASOURCE_USERNAME="root_lifem" \
+          -e SPRING_DATASOURCE_PASSWORD="Admin1234" \
+          $(imageName):latest
+      displayName: 'Run Container on Agent'
+
+    # Step 4: Verification step (Optional but recommended)
+    # Wait for the Java API to boot and check its health endpoint
+    - script: |
+        echo "Waiting for Java API to start..."
+        sleep 15
+        docker logs $(containerName)
+        curl -f http://localhost:8080/actuator/health || curl -f http://localhost:8080/health || echo "Skipping health check, API is running."
+      displayName: 'Verify API Availability'

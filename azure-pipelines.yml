@@ -7,7 +7,6 @@ pool:
 variables:
   imageName: 'java-rest-agent'
   containerName: 'my-running-api-agent'
-  vmImageName: 'ubuntu-latest'
 
 stages:
 - stage: BuildAndRun
@@ -15,7 +14,8 @@ stages:
   jobs:
   - job: LifecycleJob
     pool:
-      vmImage: $(vmImageName)
+      name: 'Default'
+
     steps:
     
     # Step 1: Clean up any leftover containers from previous pipeline runs

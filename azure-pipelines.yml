@@ -39,7 +39,7 @@ stages:
         docker run -d \
           --name $(containerName) \
           -p 8080:8080 \
-          -e SPRING_DATASOURCE_URL="lifem.mysql.database.azure.com" \
+          -e SPRING_DATASOURCE_URL="jdbc:mysql://lifem.mysql.database.azure.com:3306/lifem" \
           -e SPRING_DATASOURCE_USERNAME="root_lifem" \
           -e SPRING_DATASOURCE_PASSWORD="Admin1234" \
           $(imageName):latest

@@ -7,7 +7,6 @@ import com.idnaheim.lifem.enums.TransactionType;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.transaction.TransactionRepository;
 import lombok.AllArgsConstructor;
-import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +26,6 @@ public class IncomeService {
     private final IncomeRepository incomeRepository;
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
-    private final CacheManager cacheManager;
 
     public List<IncomeResponse> getAllIncomes() {
         List<IncomeEntity> incomes = incomeRepository.findAll();
@@ -151,10 +149,6 @@ public class IncomeService {
         // Add to account balance
         account.setBalance(account.getBalance().add(amount));
         accountRepository.save(account);
-
-        // Evict account caches since balance changed
-        cacheManager.getCache("accounts").clear();
-        cacheManager.getCache("accountById").evict(accountId);
 
         // Create transaction record
         TransactionEntity transaction = new TransactionEntity();

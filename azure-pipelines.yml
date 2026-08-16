@@ -1,6 +1,9 @@
 trigger:
   - deployments
 
+pool:
+  name: 'Default'
+
 variables:
   imageName: 'java-rest-agent'
   containerName: 'my-running-api-agent'

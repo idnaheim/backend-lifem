@@ -1,6 +1,5 @@
 package com.idnaheim.lifem.transaction;
 
-import com.idnaheim.lifem.messaging.TransactionEventConsumer;
 import com.idnaheim.lifem.utilities.ApiResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 public class TransactionController {
 
     private final TransactionService transactionService;
-    private final TransactionEventConsumer transactionEventConsumer;
 
     @GetMapping
     public ResponseEntity<ApiResponse<?>> getAllTransactions() {
@@ -66,11 +64,6 @@ public class TransactionController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.badRequest(e.getMessage()));
         }
-    }
-
-    @GetMapping("/events")
-    public ResponseEntity<ApiResponse<?>> getTransactionEvents() {
-        return ResponseEntity.ok(ApiResponse.success(transactionEventConsumer.getEvents()));
     }
 
 }

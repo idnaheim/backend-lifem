@@ -5,9 +5,6 @@ import com.idnaheim.lifem.enums.TransactionType;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.transaction.TransactionRepository;
 import lombok.AllArgsConstructor;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,28 +19,18 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
 
-    @Cacheable("accounts")
     public List<AccountEntity> getAllAccounts() {
         return accountRepository.findAll();
     }
 
-    @Cacheable(value = "accountById", key = "#id")
     public Optional<AccountEntity> getAccountById(long id) {
         return accountRepository.findById(id);
     }
 
-    @Caching(evict = {
-        @CacheEvict(value = "accounts", allEntries = true),
-        @CacheEvict(value = "accountById", allEntries = true)
-    })
     public AccountEntity createAccount(AccountEntity account) {
         return accountRepository.save(account);
     }
 
-    @Caching(evict = {
-        @CacheEvict(value = "accounts", allEntries = true),
-        @CacheEvict(value = "accountById", key = "#id")
-    })
     public Optional<AccountEntity> updateAccount(long id, AccountEntity updatedAccount) {
         return accountRepository.findById(id).map(existing -> {
             existing.setName(updatedAccount.getName());
@@ -55,10 +42,6 @@ public class AccountService {
         });
     }
 
-    @Caching(evict = {
-        @CacheEvict(value = "accounts", allEntries = true),
-        @CacheEvict(value = "accountById", key = "#id")
-    })
     public boolean deleteAccount(long id) {
         if (accountRepository.existsById(id)) {
             accountRepository.deleteById(id);
@@ -68,10 +51,6 @@ public class AccountService {
     }
 
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = "accounts", allEntries = true),
-        @CacheEvict(value = "accountById", allEntries = true)
-    })
     public void transfer(long fromAccountId, long toAccountId, double amount) {
         if (amount <= 0) {
             throw new IllegalArgumentException("Transfer amount must be greater than zero");

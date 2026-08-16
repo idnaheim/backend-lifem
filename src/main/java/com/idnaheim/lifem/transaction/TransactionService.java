@@ -7,10 +7,7 @@ import com.idnaheim.lifem.expense.ExpenseEntity;
 import com.idnaheim.lifem.expense.ExpenseRepository;
 import com.idnaheim.lifem.income.IncomeEntity;
 import com.idnaheim.lifem.income.IncomeRepository;
-import com.idnaheim.lifem.messaging.TransactionEvent;
-import com.idnaheim.lifem.messaging.TransactionEventProducer;
 import lombok.AllArgsConstructor;
-import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,8 +23,6 @@ public class TransactionService {
     private final AccountRepository accountRepository;
     private final ExpenseRepository expenseRepository;
     private final IncomeRepository incomeRepository;
-    private final CacheManager cacheManager;
-    private final TransactionEventProducer transactionEventProducer;
 
     public List<TransactionEntity> getAllTransactions() {
         return transactionRepository.findAll();
@@ -79,15 +74,8 @@ public class TransactionService {
             // Reverse the balance effect on the account
             if (transaction.getAccount() != null && transaction.getAmount() != null) {
                 AccountEntity account = transaction.getAccount();
-                // Subtract the transaction amount to reverse it
-                // (expense amounts are negative, so subtracting a negative adds back;
-                //  income amounts are positive, so subtracting a positive deducts it)
                 account.setBalance(account.getBalance().subtract(transaction.getAmount()));
                 accountRepository.save(account);
-
-                // Evict account caches since balance changed
-                cacheManager.getCache("accounts").clear();
-                cacheManager.getCache("accountById").evict(account.getId());
             }
 
             transactionRepository.deleteById(id);
@@ -109,10 +97,6 @@ public class TransactionService {
         account.setBalance(account.getBalance().subtract(request.getAmount()));
         accountRepository.save(account);
 
-        // Evict account caches since balance changed
-        cacheManager.getCache("accounts").clear();
-        cacheManager.getCache("accountById").evict(request.getAccountId());
-
         // Create transaction record
         TransactionEntity transaction = new TransactionEntity();
         transaction.setAccount(account);
@@ -133,9 +117,7 @@ public class TransactionService {
             transaction.setIncome(income);
         }
 
-        TransactionEntity saved = transactionRepository.save(transaction);
-        transactionEventProducer.publish(TransactionEvent.fromEntity(saved));
-        return saved;
+        return transactionRepository.save(transaction);
     }
 
     @Transactional
@@ -150,10 +132,6 @@ public class TransactionService {
         // Add to account balance
         account.setBalance(account.getBalance().add(request.getAmount()));
         accountRepository.save(account);
-
-        // Evict account caches since balance changed
-        cacheManager.getCache("accounts").clear();
-        cacheManager.getCache("accountById").evict(request.getAccountId());
 
         // Create transaction record
         TransactionEntity transaction = new TransactionEntity();
@@ -175,9 +153,7 @@ public class TransactionService {
             transaction.setExpense(expense);
         }
 
-        TransactionEntity saved = transactionRepository.save(transaction);
-        transactionEventProducer.publish(TransactionEvent.fromEntity(saved));
-        return saved;
+        return transactionRepository.save(transaction);
     }
 
 }

@@ -63,5 +63,3 @@ stages:
         docker logs $(containerName)
         curl -f http://localhost:$(hostPort)/actuator/health || echo "Skipping health check, API is running."
       displayName: 'Verify API Availability'
-</text>
-</invoke>

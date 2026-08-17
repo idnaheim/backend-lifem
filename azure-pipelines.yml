@@ -5,8 +5,10 @@ pool:
   name: 'Default'
 
 variables:
-  imageName: 'java-rest-agent'
-  containerName: 'my-running-api-agent'
+  imageName: 'api'
+  containerName: 'api'
+  hostPort: '8080'
+  containerPort: '8080'
 
 stages:
 - stage: BuildAndRun
@@ -17,14 +19,21 @@ stages:
       name: 'Default'
 
     steps:
-    
+
     # Step 1: Clean up any leftover containers from previous pipeline runs
     - script: |
         docker stop $(containerName) || true
         docker rm $(containerName) || true
       displayName: 'Clean Up Existing Containers'
 
-    # Step 2: Build the Docker image on the runner using your Dockerfile
+    # Step 2: Ensure shared network exists (idempotent)
+    # Both frontend and API containers must be on this network
+    # so Nginx can resolve the hostname "api"
+    - script: |
+        docker network create lifem-net || true
+      displayName: 'Ensure Docker Network Exists'
+
+    # Step 3: Build the Docker image on the agent using the Dockerfile
     - task: Docker@2
       displayName: 'Build Docker Image on Agent'
       inputs:
@@ -33,23 +42,26 @@ stages:
         repository: $(imageName)
         tags: 'latest'
 
-    # Step 3: Run the image as a detached background container on the agent
-    # We pass the production database credentials securely via pipeline variables
+    # Step 4: Run the image as a detached background container
+    # --network lifem-net allows the frontend Nginx to resolve the "api" upstream hostname
+    # Database credentials are passed securely via pipeline variables
     - script: |
         docker run -d \
           --name $(containerName) \
-          -p 8080:8080 \
+          --network lifem-net \
+          -p $(hostPort):$(containerPort) \
           -e SPRING_DATASOURCE_URL="jdbc:mysql://lifem.mysql.database.azure.com:3306/lifem" \
           -e SPRING_DATASOURCE_USERNAME="root_lifem" \
           -e SPRING_DATASOURCE_PASSWORD="Admin1234" \
           $(imageName):latest
       displayName: 'Run Container on Agent'
 
-    # Step 4: Verification step (Optional but recommended)
-    # Wait for the Java API to boot and check its health endpoint
+    # Step 5: Verify the API is serving
     - script: |
         echo "Waiting for Java API to start..."
         sleep 15
         docker logs $(containerName)
-        curl -f http://localhost:8080/actuator/health || curl -f http://localhost:8080/health || echo "Skipping health check, API is running."
+        curl -f http://localhost:$(hostPort)/actuator/health || echo "Skipping health check, API is running."
       displayName: 'Verify API Availability'
+</text>
+</invoke>

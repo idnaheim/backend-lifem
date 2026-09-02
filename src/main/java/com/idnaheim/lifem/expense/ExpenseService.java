@@ -30,34 +30,61 @@ public class ExpenseService {
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
 
-    public Map<String, BigDecimal> getRunRateExpenses() {
+    public Map<ExpenseFrequency, BigDecimal> getRunRateExpenses() {
         List<ExpenseEntity> expenses = expenseRepository.findAll();
-        Map<String, BigDecimal> result = new HashMap<>();
+        Map<ExpenseFrequency, BigDecimal> result = new HashMap<>();
+        
+        BigDecimal monthly = BigDecimal.ZERO;
+        BigDecimal quarterly = BigDecimal.ZERO;
+        BigDecimal semiAnnual = BigDecimal.ZERO;
+        BigDecimal annual = BigDecimal.ZERO;
+        BigDecimal oneTime = BigDecimal.ZERO;
+        
+        for (ExpenseEntity expense : expenses) {
+            if (!expense.isActive()) continue;
+            
+            BigDecimal amount = expense.getAmount();
+            switch (expense.getFrequency()) {
+                case MONTHLY:
+                    monthly = monthly.add(amount);
+                    break;
+                case QUARTERLY:
+                    quarterly = quarterly.add(amount);
+                    break;
+                case SEMI_ANNUAL:
+                    semiAnnual = semiAnnual.add(amount);
+                    break;
+                case ANNUAL:
+                    annual = annual.add(amount);
+                    break;
+                case ONE_TIME:
+                    oneTime = oneTime.add(amount);
+                    break;
+            }
+        }
 
-
-        BigDecimal monthlyExpenses = expenses.stream()
-                .filter(expense -> expense.getFrequency() == ExpenseFrequency.MONTHLY)
-                .map(ExpenseEntity::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal annualExpenses = monthlyExpenses.multiply(BigDecimal.valueOf(12));
-
-        result.put("monthly", monthlyExpenses);
-        result.put("annually", annualExpenses);
-
+        BigDecimal aggregatedQuarterly = quarterly.add(monthly.multiply(BigDecimal.valueOf(3)));
+        BigDecimal aggregatedSemiAnnual = semiAnnual.add(aggregatedQuarterly.multiply(BigDecimal.valueOf(2)));
+        BigDecimal aggregatedAnnual = annual.add(aggregatedSemiAnnual.multiply(BigDecimal.valueOf(2)).add(oneTime));
+        
+        result.put(ExpenseFrequency.MONTHLY, monthly);
+        result.put(ExpenseFrequency.QUARTERLY, aggregatedQuarterly);
+        result.put(ExpenseFrequency.SEMI_ANNUAL, aggregatedSemiAnnual);
+        result.put(ExpenseFrequency.ANNUAL, aggregatedAnnual);
+        
         return result;
     }
 
-    public List<ExpenseEntity> getAllExpenses() {
+    public List<ExpenseResponse> getAllExpenses() {
         List<ExpenseEntity> expenses = expenseRepository.findAll();
         expenses.forEach(this::populateIsPaid);
-        return expenses;
+        return expenses.stream().map(ExpenseResponse::fromEntity).toList();
     }
 
-    public Optional<ExpenseEntity> getExpenseById(long id) {
+    public Optional<ExpenseResponse> getExpenseById(long id) {
         Optional<ExpenseEntity> expense = expenseRepository.findById(id);
         expense.ifPresent(this::populateIsPaid);
-        return expense;
+        return expense.map(ExpenseResponse::fromEntity);
     }
 
     private void populateIsPaid(ExpenseEntity expense) {
@@ -66,11 +93,6 @@ public class ExpenseService {
         LocalDate now = LocalDate.now();
 
         switch (expense.getFrequency()) {
-            case WEEKLY:
-                LocalDate startOfWeek = now.with(DayOfWeek.MONDAY);
-                start = startOfWeek.atStartOfDay();
-                end = startOfWeek.plusDays(6).atTime(LocalTime.MAX);
-                break;
             case QUARTERLY:
                 int quarterStartMonth = ((now.getMonthValue() - 1) / 3) * 3 + 1;
                 LocalDate startOfQuarter = now.withMonth(quarterStartMonth).withDayOfMonth(1);
@@ -119,8 +141,6 @@ public class ExpenseService {
         }
 
         switch (frequency) {
-            case WEEKLY:
-                return ChronoUnit.WEEKS.between(start, now) + 1;
             case MONTHLY:
                 return ChronoUnit.MONTHS.between(start, now) + 1;
             case QUARTERLY:
@@ -131,12 +151,12 @@ public class ExpenseService {
     }
 
     @Transactional
-    public ExpenseEntity createExpense(ExpenseEntity expense) {
-        return expenseRepository.save(expense);
+    public ExpenseResponse createExpense(ExpenseEntity expense) {
+        return ExpenseResponse.fromEntity(expenseRepository.save(expense));
     }
 
     @Transactional
-    public Optional<ExpenseEntity> updateExpense(long id, ExpenseEntity updatedExpense) {
+    public Optional<ExpenseResponse> updateExpense(long id, ExpenseEntity updatedExpense) {
         return expenseRepository.findById(id).map(existing -> {
             existing.setName(updatedExpense.getName());
             existing.setFrequency(updatedExpense.getFrequency());
@@ -145,7 +165,8 @@ public class ExpenseService {
             existing.setPaymentStartDate(updatedExpense.getPaymentStartDate());
             existing.setCategory(updatedExpense.getCategory());
             existing.setFixedAmount(updatedExpense.isFixedAmount());
-            return expenseRepository.save(existing);
+            existing.setActive(updatedExpense.isActive());
+            return ExpenseResponse.fromEntity(expenseRepository.save(existing));
         });
     }
 

@@ -46,6 +46,9 @@ public class ExpenseEntity extends AuditingEntity implements Serializable {
 
     private boolean isFixedAmount;
 
+    @Column(columnDefinition = "boolean default true")
+    private boolean isActive = true;
+
     @Transient
     private boolean isPaid;
 

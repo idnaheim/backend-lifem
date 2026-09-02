@@ -1,7 +1,9 @@
 package com.idnaheim.lifem.expense;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.idnaheim.lifem.enums.ExpenseCategory;
 import com.idnaheim.lifem.enums.ExpenseFrequency;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -14,7 +16,11 @@ public record ExpenseResponse(
     String description,
     Instant paymentStartDate,
     ExpenseCategory category,
+    @JsonProperty("fixedAmount") 
     boolean isFixedAmount,
+    @JsonProperty("active") 
+    boolean isActive,
+    @JsonProperty("paid") 
     boolean isPaid,
     long missedPayments,
     String createdBy,
@@ -32,6 +38,7 @@ public record ExpenseResponse(
             entity.getPaymentStartDate(),
             entity.getCategory(),
             entity.isFixedAmount(),
+            entity.isActive(),
             entity.isPaid(),
             entity.getMissedPayments(),
             entity.getCreatedBy(),

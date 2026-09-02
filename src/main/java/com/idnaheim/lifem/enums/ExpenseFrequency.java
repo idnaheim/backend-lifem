@@ -1,8 +1,9 @@
 package com.idnaheim.lifem.enums;
 
 public enum ExpenseFrequency {
-    WEEKLY,
     MONTHLY,
     QUARTERLY,
+    SEMI_ANNUAL,
+    ANNUAL,
     ONE_TIME
 }

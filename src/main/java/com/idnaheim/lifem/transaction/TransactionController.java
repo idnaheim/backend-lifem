@@ -1,6 +1,11 @@
 package com.idnaheim.lifem.transaction;
 
-import com.idnaheim.lifem.utilities.ApiResponse;
+import com.idnaheim.lifem.utilities.CustomResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,60 +14,100 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/transactions")
 @AllArgsConstructor
+@Tag(name = "Transactions", description = "Ledger of all financial movements linked to accounts, expenses, or incomes")
 public class TransactionController {
 
     private final TransactionService transactionService;
 
+    @Operation(summary = "List all transactions")
+    @ApiResponse(responseCode = "200", description = "Transactions retrieved successfully")
     @GetMapping
-    public ResponseEntity<ApiResponse<?>> getAllTransactions() {
-        return ResponseEntity.ok(ApiResponse.success(transactionService.getAllTransactions()));
+    public ResponseEntity<CustomResponse<?>> getAllTransactions() {
+        return ResponseEntity.ok(CustomResponse.success(transactionService.getAllTransactions()));
     }
 
+    @Operation(summary = "Get transaction by ID")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Transaction found"),
+        @ApiResponse(responseCode = "404", description = "Transaction not found")
+    })
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<?>> getTransactionById(@PathVariable long id) {
+    public ResponseEntity<CustomResponse<?>> getTransactionById(
+            @Parameter(description = "Transaction ID") @PathVariable long id) {
         return transactionService.getTransactionById(id)
-                .<ResponseEntity<ApiResponse<?>>>map(transaction -> ResponseEntity.ok(ApiResponse.success(transaction)))
-                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
+                .<ResponseEntity<CustomResponse<?>>>map(transaction -> ResponseEntity.ok(CustomResponse.success(transaction)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
+    @Operation(summary = "Create a raw transaction",
+               description = "Directly creates a transaction entry. Prefer /transactions/expense or /transactions/income for domain-specific recording.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Transaction created"),
+        @ApiResponse(responseCode = "400", description = "Invalid request body")
+    })
     @PostMapping
-    public ResponseEntity<ApiResponse<?>> createTransaction(@RequestBody TransactionEntity transaction) {
+    public ResponseEntity<CustomResponse<?>> createTransaction(@RequestBody TransactionEntity transaction) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created(transactionService.createTransaction(transaction)));
+                .body(CustomResponse.created(transactionService.createTransaction(transaction)));
     }
 
+    @Operation(summary = "Update a transaction")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Transaction updated"),
+        @ApiResponse(responseCode = "404", description = "Transaction not found")
+    })
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<?>> updateTransaction(@PathVariable long id, @RequestBody TransactionRequest request) {
+    public ResponseEntity<CustomResponse<?>> updateTransaction(
+            @Parameter(description = "Transaction ID") @PathVariable long id,
+            @RequestBody TransactionRequest request) {
         return transactionService.updateTransaction(id, request)
-                .<ResponseEntity<ApiResponse<?>>>map(updated -> ResponseEntity.ok(ApiResponse.success(updated)))
-                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
+                .<ResponseEntity<CustomResponse<?>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
+    @Operation(summary = "Delete a transaction")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Transaction deleted"),
+        @ApiResponse(responseCode = "404", description = "Transaction not found")
+    })
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<?>> deleteTransaction(@PathVariable long id) {
+    public ResponseEntity<CustomResponse<?>> deleteTransaction(
+            @Parameter(description = "Transaction ID") @PathVariable long id) {
         if (transactionService.deleteTransaction(id)) {
-            return ResponseEntity.ok(ApiResponse.success(204, "Transaction deleted successfully", null));
+            return ResponseEntity.ok(CustomResponse.success(204, "Transaction deleted successfully", null));
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound());
     }
 
+    @Operation(summary = "Record an expense transaction",
+               description = "Records a debit transaction tied to an expense and debits the linked account.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Expense transaction recorded"),
+        @ApiResponse(responseCode = "400", description = "Invalid data (e.g. account or expense not found)")
+    })
     @PostMapping("/expense")
-    public ResponseEntity<ApiResponse<?>> recordExpense(@RequestBody TransactionRequest request) {
+    public ResponseEntity<CustomResponse<?>> recordExpense(@RequestBody TransactionRequest request) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.created(transactionService.recordExpense(request)));
+                    .body(CustomResponse.created(transactionService.recordExpense(request)));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.badRequest(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CustomResponse.badRequest(e.getMessage()));
         }
     }
 
+    @Operation(summary = "Record an income transaction",
+               description = "Records a credit transaction tied to an income source and credits the linked account.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Income transaction recorded"),
+        @ApiResponse(responseCode = "400", description = "Invalid data (e.g. account or income not found)")
+    })
     @PostMapping("/income")
-    public ResponseEntity<ApiResponse<?>> recordIncome(@RequestBody TransactionRequest request) {
+    public ResponseEntity<CustomResponse<?>> recordIncome(@RequestBody TransactionRequest request) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.created(transactionService.recordIncome(request)));
+                    .body(CustomResponse.created(transactionService.recordIncome(request)));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.badRequest(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CustomResponse.badRequest(e.getMessage()));
         }
     }
 

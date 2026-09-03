@@ -1,6 +1,7 @@
 package com.idnaheim.lifem.expense;
 
 import com.idnaheim.lifem.enums.ExpenseFrequency;
+import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.utilities.CustomResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -99,7 +100,7 @@ public class ExpenseController {
         @ApiResponse(responseCode = "404", description = "Expense not found")
     })
     @PostMapping("/{id}/pay")
-    public ResponseEntity<CustomResponse<?>> payExpense(
+    public ResponseEntity<CustomResponse<TransactionEntity>> payExpense(
             @Parameter(description = "Expense ID") @PathVariable long id,
             @Parameter(description = "Account ID to debit") @RequestParam long accountId,
             @Parameter(description = "Payment amount") @RequestParam BigDecimal amount,

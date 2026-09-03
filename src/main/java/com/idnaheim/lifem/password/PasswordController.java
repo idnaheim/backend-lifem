@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/passwords")
 @AllArgsConstructor
@@ -23,7 +25,7 @@ public class PasswordController {
                description = "Returns all password vault entries. Passwords are decrypted before being returned.")
     @ApiResponse(responseCode = "200", description = "Vault entries retrieved successfully")
     @GetMapping
-    public ResponseEntity<CustomResponse<?>> getAllPasswords() {
+    public ResponseEntity<CustomResponse<List<PasswordEntity>>> getAllPasswords() {
         return ResponseEntity.ok(CustomResponse.success(passwordService.getAllPasswords()));
     }
 
@@ -33,10 +35,10 @@ public class PasswordController {
         @ApiResponse(responseCode = "404", description = "Entry not found")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> getPasswordById(
+    public ResponseEntity<CustomResponse<PasswordEntity>> getPasswordById(
             @Parameter(description = "Password entry ID") @PathVariable long id) {
         return passwordService.getPasswordById(id)
-                .<ResponseEntity<CustomResponse<?>>>map(password -> ResponseEntity.ok(CustomResponse.success(password)))
+                .<ResponseEntity<CustomResponse<PasswordEntity>>>map(password -> ResponseEntity.ok(CustomResponse.success(password)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -47,7 +49,7 @@ public class PasswordController {
         @ApiResponse(responseCode = "400", description = "Invalid request body")
     })
     @PostMapping
-    public ResponseEntity<CustomResponse<?>> createPassword(@RequestBody PasswordRequest request) {
+    public ResponseEntity<CustomResponse<PasswordEntity>> createPassword(@RequestBody PasswordRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CustomResponse.created(passwordService.createPassword(request)));
     }
@@ -58,11 +60,11 @@ public class PasswordController {
         @ApiResponse(responseCode = "404", description = "Entry not found")
     })
     @PutMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> updatePassword(
+    public ResponseEntity<CustomResponse<PasswordEntity>> updatePassword(
             @Parameter(description = "Password entry ID") @PathVariable long id,
             @RequestBody PasswordRequest request) {
         return passwordService.updatePassword(id, request)
-                .<ResponseEntity<CustomResponse<?>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
+                .<ResponseEntity<CustomResponse<PasswordEntity>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -72,7 +74,7 @@ public class PasswordController {
         @ApiResponse(responseCode = "404", description = "Entry not found")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> deletePassword(
+    public ResponseEntity<CustomResponse<Void>> deletePassword(
             @Parameter(description = "Password entry ID") @PathVariable long id) {
         if (passwordService.deletePassword(id)) {
             return ResponseEntity.ok(CustomResponse.success(204, "Password deleted successfully", null));

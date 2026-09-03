@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.List;
 
 @RestController
 @RequestMapping("/calendar/events")
@@ -24,7 +25,7 @@ public class CalendarController {
     @Operation(summary = "List all calendar events")
     @ApiResponse(responseCode = "200", description = "Events retrieved successfully")
     @GetMapping
-    public ResponseEntity<CustomResponse<?>> getAllEvents() {
+    public ResponseEntity<CustomResponse<List<CalendarEntity>>> getAllEvents() {
         return ResponseEntity.ok(CustomResponse.success(calendarService.getAllEvents()));
     }
 
@@ -34,10 +35,10 @@ public class CalendarController {
         @ApiResponse(responseCode = "404", description = "Event not found")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> getEventById(
+    public ResponseEntity<CustomResponse<CalendarEntity>> getEventById(
             @Parameter(description = "Event ID") @PathVariable long id) {
         return calendarService.getEventById(id)
-                .<ResponseEntity<CustomResponse<?>>>map(event -> ResponseEntity.ok(CustomResponse.success(event)))
+                .<ResponseEntity<CustomResponse<CalendarEntity>>>map(event -> ResponseEntity.ok(CustomResponse.success(event)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -45,7 +46,7 @@ public class CalendarController {
                description = "Returns all calendar events that fall between the given start and end timestamps (ISO-8601).")
     @ApiResponse(responseCode = "200", description = "Events in range retrieved")
     @GetMapping("/range")
-    public ResponseEntity<CustomResponse<?>> getEventsBetween(
+    public ResponseEntity<CustomResponse<List<CalendarEntity>>> getEventsBetween(
             @Parameter(description = "Range start (ISO-8601 instant)") @RequestParam Instant start,
             @Parameter(description = "Range end (ISO-8601 instant)") @RequestParam Instant end) {
         return ResponseEntity.ok(CustomResponse.success(calendarService.getEventsBetween(start, end)));
@@ -57,7 +58,7 @@ public class CalendarController {
         @ApiResponse(responseCode = "400", description = "Invalid request body")
     })
     @PostMapping
-    public ResponseEntity<CustomResponse<?>> createEvent(@RequestBody CalendarRequest request) {
+    public ResponseEntity<CustomResponse<CalendarEntity>> createEvent(@RequestBody CalendarRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CustomResponse.created(calendarService.createEvent(request)));
     }
@@ -68,11 +69,11 @@ public class CalendarController {
         @ApiResponse(responseCode = "404", description = "Event not found")
     })
     @PutMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> updateEvent(
+    public ResponseEntity<CustomResponse<CalendarEntity>> updateEvent(
             @Parameter(description = "Event ID") @PathVariable long id,
             @RequestBody CalendarRequest request) {
         return calendarService.updateEvent(id, request)
-                .<ResponseEntity<CustomResponse<?>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
+                .<ResponseEntity<CustomResponse<CalendarEntity>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -82,7 +83,7 @@ public class CalendarController {
         @ApiResponse(responseCode = "404", description = "Event not found")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> deleteEvent(
+    public ResponseEntity<CustomResponse<Void>> deleteEvent(
             @Parameter(description = "Event ID") @PathVariable long id) {
         if (calendarService.deleteEvent(id)) {
             return ResponseEntity.ok(CustomResponse.success(204, "Event deleted successfully", null));

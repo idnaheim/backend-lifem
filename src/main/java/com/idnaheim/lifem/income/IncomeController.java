@@ -1,5 +1,6 @@
 package com.idnaheim.lifem.income;
 
+import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.utilities.CustomResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/incomes")
@@ -24,14 +26,14 @@ public class IncomeController {
     @Operation(summary = "List all income sources")
     @ApiResponse(responseCode = "200", description = "Incomes retrieved successfully")
     @GetMapping
-    public ResponseEntity<CustomResponse<?>> getAllIncomes() {
+    public ResponseEntity<CustomResponse<List<IncomeResponse>>> getAllIncomes() {
         return ResponseEntity.ok(CustomResponse.success(incomeService.getAllIncomes()));
     }
 
     @Operation(summary = "List active income sources")
     @ApiResponse(responseCode = "200", description = "Active incomes retrieved")
     @GetMapping("/active")
-    public ResponseEntity<CustomResponse<?>> getActiveIncomes() {
+    public ResponseEntity<CustomResponse<List<IncomeResponse>>> getActiveIncomes() {
         return ResponseEntity.ok(CustomResponse.success(incomeService.getActiveIncomes()));
     }
 
@@ -41,10 +43,10 @@ public class IncomeController {
         @ApiResponse(responseCode = "404", description = "Income not found")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> getIncomeById(
+    public ResponseEntity<CustomResponse<IncomeResponse>> getIncomeById(
             @Parameter(description = "Income ID") @PathVariable long id) {
         return incomeService.getIncomeById(id)
-                .<ResponseEntity<CustomResponse<?>>>map(income -> ResponseEntity.ok(CustomResponse.success(income)))
+                .<ResponseEntity<CustomResponse<IncomeResponse>>>map(income -> ResponseEntity.ok(CustomResponse.success(income)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -54,7 +56,7 @@ public class IncomeController {
         @ApiResponse(responseCode = "400", description = "Invalid request body")
     })
     @PostMapping
-    public ResponseEntity<CustomResponse<?>> createIncome(@RequestBody IncomeRequest request) {
+    public ResponseEntity<CustomResponse<IncomeResponse>> createIncome(@RequestBody IncomeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CustomResponse.created(incomeService.createIncome(request)));
     }
@@ -65,11 +67,11 @@ public class IncomeController {
         @ApiResponse(responseCode = "404", description = "Income not found")
     })
     @PutMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> updateIncome(
+    public ResponseEntity<CustomResponse<IncomeResponse>> updateIncome(
             @Parameter(description = "Income ID") @PathVariable long id,
             @RequestBody IncomeRequest request) {
         return incomeService.updateIncome(id, request)
-                .<ResponseEntity<CustomResponse<?>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
+                .<ResponseEntity<CustomResponse<IncomeResponse>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -79,7 +81,7 @@ public class IncomeController {
         @ApiResponse(responseCode = "404", description = "Income not found")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> deleteIncome(
+    public ResponseEntity<CustomResponse<Void>> deleteIncome(
             @Parameter(description = "Income ID") @PathVariable long id) {
         if (incomeService.deleteIncome(id)) {
             return ResponseEntity.ok(CustomResponse.success(204, "Income deleted successfully", null));
@@ -95,7 +97,7 @@ public class IncomeController {
         @ApiResponse(responseCode = "404", description = "Income not found")
     })
     @PostMapping("/{id}/receive")
-    public ResponseEntity<CustomResponse<?>> receiveIncome(
+    public ResponseEntity<CustomResponse<TransactionEntity>> receiveIncome(
             @Parameter(description = "Income ID") @PathVariable long id,
             @Parameter(description = "Account ID to credit") @RequestParam long accountId,
             @Parameter(description = "Amount received") @RequestParam BigDecimal amount,

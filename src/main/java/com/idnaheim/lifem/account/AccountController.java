@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/accounts")
 @AllArgsConstructor
@@ -22,7 +24,7 @@ public class AccountController {
     @Operation(summary = "List all accounts", description = "Returns all financial accounts.")
     @ApiResponse(responseCode = "200", description = "Accounts retrieved successfully")
     @GetMapping
-    public ResponseEntity<CustomResponse<?>> getAllAccounts() {
+    public ResponseEntity<CustomResponse<List<AccountEntity>>> getAllAccounts() {
         return ResponseEntity.ok(CustomResponse.success(accountService.getAllAccounts()));
     }
 
@@ -32,10 +34,10 @@ public class AccountController {
         @ApiResponse(responseCode = "404", description = "Account not found")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> getAccountById(
+    public ResponseEntity<CustomResponse<AccountEntity>> getAccountById(
             @Parameter(description = "Account ID") @PathVariable long id) {
         return accountService.getAccountById(id)
-                .<ResponseEntity<CustomResponse<?>>>map(account -> ResponseEntity.ok(CustomResponse.success(account)))
+                .<ResponseEntity<CustomResponse<AccountEntity>>>map(account -> ResponseEntity.ok(CustomResponse.success(account)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -45,7 +47,7 @@ public class AccountController {
         @ApiResponse(responseCode = "400", description = "Invalid request body")
     })
     @PostMapping
-    public ResponseEntity<CustomResponse<?>> createAccount(@RequestBody AccountEntity account) {
+    public ResponseEntity<CustomResponse<AccountEntity>> createAccount(@RequestBody AccountEntity account) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CustomResponse.created(accountService.createAccount(account)));
     }
@@ -56,11 +58,11 @@ public class AccountController {
         @ApiResponse(responseCode = "404", description = "Account not found")
     })
     @PutMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> updateAccount(
+    public ResponseEntity<CustomResponse<AccountEntity>> updateAccount(
             @Parameter(description = "Account ID") @PathVariable long id,
             @RequestBody AccountEntity account) {
         return accountService.updateAccount(id, account)
-                .<ResponseEntity<CustomResponse<?>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
+                .<ResponseEntity<CustomResponse<AccountEntity>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -70,7 +72,7 @@ public class AccountController {
         @ApiResponse(responseCode = "404", description = "Account not found")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> deleteAccount(
+    public ResponseEntity<CustomResponse<Void>> deleteAccount(
             @Parameter(description = "Account ID") @PathVariable long id) {
         if (accountService.deleteAccount(id)) {
             return ResponseEntity.ok(CustomResponse.success(204, "Account deleted successfully", null));
@@ -85,7 +87,7 @@ public class AccountController {
         @ApiResponse(responseCode = "400", description = "Invalid transfer (e.g. insufficient balance)")
     })
     @PostMapping("/transfer")
-    public ResponseEntity<CustomResponse<?>> transfer(@RequestBody TransferRequest request) {
+    public ResponseEntity<CustomResponse<Void>> transfer(@RequestBody TransferRequest request) {
         try {
             accountService.transfer(request.fromAccountId(), request.toAccountId(), request.amount());
             return ResponseEntity.ok(CustomResponse.success(200, "Transfer successful", null));

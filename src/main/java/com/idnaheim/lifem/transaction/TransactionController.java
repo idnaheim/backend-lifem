@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/transactions")
 @AllArgsConstructor
@@ -22,7 +24,7 @@ public class TransactionController {
     @Operation(summary = "List all transactions")
     @ApiResponse(responseCode = "200", description = "Transactions retrieved successfully")
     @GetMapping
-    public ResponseEntity<CustomResponse<?>> getAllTransactions() {
+    public ResponseEntity<CustomResponse<List<TransactionEntity>>> getAllTransactions() {
         return ResponseEntity.ok(CustomResponse.success(transactionService.getAllTransactions()));
     }
 
@@ -32,10 +34,10 @@ public class TransactionController {
         @ApiResponse(responseCode = "404", description = "Transaction not found")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> getTransactionById(
+    public ResponseEntity<CustomResponse<TransactionEntity>> getTransactionById(
             @Parameter(description = "Transaction ID") @PathVariable long id) {
         return transactionService.getTransactionById(id)
-                .<ResponseEntity<CustomResponse<?>>>map(transaction -> ResponseEntity.ok(CustomResponse.success(transaction)))
+                .<ResponseEntity<CustomResponse<TransactionEntity>>>map(transaction -> ResponseEntity.ok(CustomResponse.success(transaction)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -46,7 +48,7 @@ public class TransactionController {
         @ApiResponse(responseCode = "400", description = "Invalid request body")
     })
     @PostMapping
-    public ResponseEntity<CustomResponse<?>> createTransaction(@RequestBody TransactionEntity transaction) {
+    public ResponseEntity<CustomResponse<TransactionEntity>> createTransaction(@RequestBody TransactionEntity transaction) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CustomResponse.created(transactionService.createTransaction(transaction)));
     }
@@ -57,11 +59,11 @@ public class TransactionController {
         @ApiResponse(responseCode = "404", description = "Transaction not found")
     })
     @PutMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> updateTransaction(
+    public ResponseEntity<CustomResponse<TransactionEntity>> updateTransaction(
             @Parameter(description = "Transaction ID") @PathVariable long id,
             @RequestBody TransactionRequest request) {
         return transactionService.updateTransaction(id, request)
-                .<ResponseEntity<CustomResponse<?>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
+                .<ResponseEntity<CustomResponse<TransactionEntity>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -71,7 +73,7 @@ public class TransactionController {
         @ApiResponse(responseCode = "404", description = "Transaction not found")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<CustomResponse<?>> deleteTransaction(
+    public ResponseEntity<CustomResponse<Void>> deleteTransaction(
             @Parameter(description = "Transaction ID") @PathVariable long id) {
         if (transactionService.deleteTransaction(id)) {
             return ResponseEntity.ok(CustomResponse.success(204, "Transaction deleted successfully", null));
@@ -86,7 +88,7 @@ public class TransactionController {
         @ApiResponse(responseCode = "400", description = "Invalid data (e.g. account or expense not found)")
     })
     @PostMapping("/expense")
-    public ResponseEntity<CustomResponse<?>> recordExpense(@RequestBody TransactionRequest request) {
+    public ResponseEntity<CustomResponse<TransactionEntity>> recordExpense(@RequestBody TransactionRequest request) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(CustomResponse.created(transactionService.recordExpense(request)));
@@ -102,7 +104,7 @@ public class TransactionController {
         @ApiResponse(responseCode = "400", description = "Invalid data (e.g. account or income not found)")
     })
     @PostMapping("/income")
-    public ResponseEntity<CustomResponse<?>> recordIncome(@RequestBody TransactionRequest request) {
+    public ResponseEntity<CustomResponse<TransactionEntity>> recordIncome(@RequestBody TransactionRequest request) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(CustomResponse.created(transactionService.recordIncome(request)));

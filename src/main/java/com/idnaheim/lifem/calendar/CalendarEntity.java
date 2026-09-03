@@ -14,8 +14,8 @@ import java.time.Instant;
 @Getter
 @Setter
 @Entity
-@Table(name = "calendar_events")
-public class CalendarEventEntity extends AuditingEntity implements Serializable {
+@Table(name = "calendar")
+public class CalendarEntity extends AuditingEntity implements Serializable {
 
     @Serial
     private static final long serialVersionUID = -1L;

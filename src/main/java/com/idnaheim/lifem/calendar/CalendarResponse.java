@@ -5,7 +5,7 @@ import com.idnaheim.lifem.enums.EventFrequency;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
-public record CalendarEventResponse(
+public record CalendarResponse(
     long id,
     String title,
     String description,
@@ -22,8 +22,8 @@ public record CalendarEventResponse(
     String modifiedBy,
     LocalDateTime modifiedDate
 ) {
-    public static CalendarEventResponse fromEntity(CalendarEventEntity entity) {
-        return new CalendarEventResponse(
+    public static CalendarResponse fromEntity(CalendarEntity entity) {
+        return new CalendarResponse(
             entity.getId(),
             entity.getTitle(),
             entity.getDescription(),

@@ -9,28 +9,28 @@ import java.util.Optional;
 
 @Service
 @AllArgsConstructor
-public class CalendarEventService {
+public class CalendarService {
 
-    private final CalendarEventRepository calendarEventRepository;
+    private final CalendarRepository calendarRepository;
 
-    public List<CalendarEventEntity> getAllEvents() {
-        return calendarEventRepository.findAll();
+    public List<CalendarEntity> getAllEvents() {
+        return calendarRepository.findAll();
     }
 
-    public Optional<CalendarEventEntity> getEventById(long id) {
-        return calendarEventRepository.findById(id);
+    public Optional<CalendarEntity> getEventById(long id) {
+        return calendarRepository.findById(id);
     }
 
-    public List<CalendarEventEntity> getEventsBetween(Instant start, Instant end) {
-        return calendarEventRepository.findByStartDateBetweenOrderByStartDateAsc(start, end);
+    public List<CalendarEntity> getEventsBetween(Instant start, Instant end) {
+        return calendarRepository.findByStartDateBetweenOrderByStartDateAsc(start, end);
     }
 
-    public CalendarEventEntity createEvent(CalendarEventEntity event) {
-        return calendarEventRepository.save(event);
+    public CalendarEntity createEvent(CalendarEntity event) {
+        return calendarRepository.save(event);
     }
 
-    public Optional<CalendarEventEntity> updateEvent(long id, CalendarEventEntity updatedEvent) {
-        return calendarEventRepository.findById(id).map(existing -> {
+    public Optional<CalendarEntity> updateEvent(long id, CalendarEntity updatedEvent) {
+        return calendarRepository.findById(id).map(existing -> {
             existing.setTitle(updatedEvent.getTitle());
             existing.setDescription(updatedEvent.getDescription());
             existing.setStartDate(updatedEvent.getStartDate());
@@ -41,13 +41,13 @@ public class CalendarEventService {
             existing.setLocation(updatedEvent.getLocation());
             existing.setReminderEnabled(updatedEvent.isReminderEnabled());
             existing.setReminderMinutesBefore(updatedEvent.getReminderMinutesBefore());
-            return calendarEventRepository.save(existing);
+            return calendarRepository.save(existing);
         });
     }
 
     public boolean deleteEvent(long id) {
-        if (calendarEventRepository.existsById(id)) {
-            calendarEventRepository.deleteById(id);
+        if (calendarRepository.existsById(id)) {
+            calendarRepository.deleteById(id);
             return true;
         }
         return false;

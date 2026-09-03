@@ -1,23 +1,18 @@
 package com.idnaheim.lifem.income;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.idnaheim.lifem.enums.IncomeCategory;
 import com.idnaheim.lifem.enums.IncomeFrequency;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 
-@Getter
-@Setter
-public class IncomeRequest {
-
-    private String name;
-    private String source;
-    private BigDecimal amount;
-    private IncomeCategory category;
-    private IncomeFrequency frequency;
-    private Long accountId;
-    private boolean isActive;
-    private String remarks;
-
-}
+public record IncomeRequest(
+        String name,
+        String source,
+        BigDecimal amount,
+        IncomeCategory category,
+        IncomeFrequency frequency,
+        Long accountId,
+        @JsonProperty("active") boolean isActive,
+        String remarks
+) {}

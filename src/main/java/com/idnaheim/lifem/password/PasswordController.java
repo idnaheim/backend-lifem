@@ -26,14 +26,14 @@ public class PasswordController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<?>> createPassword(@RequestBody PasswordEntity password) {
+    public ResponseEntity<ApiResponse<?>> createPassword(@RequestBody PasswordRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created(passwordService.createPassword(password)));
+                .body(ApiResponse.created(passwordService.createPassword(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<?>> updatePassword(@PathVariable long id, @RequestBody PasswordEntity password) {
-        return passwordService.updatePassword(id, password)
+    public ResponseEntity<ApiResponse<?>> updatePassword(@PathVariable long id, @RequestBody PasswordRequest request) {
+        return passwordService.updatePassword(id, request)
                 .<ResponseEntity<ApiResponse<?>>>map(updated -> ResponseEntity.ok(ApiResponse.success(updated)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }

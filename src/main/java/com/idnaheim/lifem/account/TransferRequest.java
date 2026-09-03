@@ -1,14 +1,9 @@
 package com.idnaheim.lifem.account;
 
-import lombok.Getter;
-import lombok.Setter;
+import java.math.BigDecimal;
 
-@Getter
-@Setter
-public class TransferRequest {
-
-    private long fromAccountId;
-    private long toAccountId;
-    private double amount;
-
-}
+public record TransferRequest(
+        long fromAccountId,
+        long toAccountId,
+        BigDecimal amount
+) {}

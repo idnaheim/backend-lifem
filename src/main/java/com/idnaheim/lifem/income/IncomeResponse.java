@@ -1,57 +1,51 @@
 package com.idnaheim.lifem.income;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.idnaheim.lifem.enums.IncomeCategory;
 import com.idnaheim.lifem.enums.IncomeFrequency;
 import com.idnaheim.lifem.transaction.TransactionEntity;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Getter
-@Setter
-public class IncomeResponse {
-
-    private long id;
-    private String name;
-    private String source;
-    private BigDecimal amount;
-    private IncomeCategory category;
-    private IncomeFrequency frequency;
-    private Long accountId;
-    private String accountName;
-    private boolean isActive;
-    private String remarks;
-    private String createdBy;
-    private LocalDateTime createdDate;
-    private String modifiedBy;
-    private LocalDateTime modifiedDate;
-    private List<TransactionEntity> transactions;
-
+public record IncomeResponse(
+        long id,
+        String name,
+        String source,
+        BigDecimal amount,
+        IncomeCategory category,
+        IncomeFrequency frequency,
+        Long accountId,
+        String accountName,
+        @JsonProperty("active") boolean isActive,
+        String remarks,
+        String createdBy,
+        LocalDateTime createdDate,
+        String modifiedBy,
+        LocalDateTime modifiedDate,
+        List<TransactionEntity> transactions
+) {
     public static IncomeResponse fromEntity(IncomeEntity entity) {
-        IncomeResponse response = new IncomeResponse();
-        response.setId(entity.getId());
-        response.setName(entity.getName());
-        response.setSource(entity.getSource());
-        response.setAmount(entity.getAmount());
-        response.setCategory(entity.getCategory());
-        response.setFrequency(entity.getFrequency());
-        response.setActive(entity.isActive());
-        response.setRemarks(entity.getRemarks());
-        response.setCreatedBy(entity.getCreatedBy());
-        response.setCreatedDate(entity.getCreatedDate());
-        response.setModifiedBy(entity.getModifiedBy());
-        response.setModifiedDate(entity.getModifiedDate());
-        response.setTransactions(entity.getTransactions());
+        Long accountId = entity.getAccount() != null ? entity.getAccount().getId() : null;
+        String accountName = entity.getAccount() != null ? entity.getAccount().getName() : null;
 
-        if (entity.getAccount() != null) {
-            response.setAccountId(entity.getAccount().getId());
-            response.setAccountName(entity.getAccount().getName());
-        }
-
-        return response;
+        return new IncomeResponse(
+                entity.getId(),
+                entity.getName(),
+                entity.getSource(),
+                entity.getAmount(),
+                entity.getCategory(),
+                entity.getFrequency(),
+                accountId,
+                accountName,
+                entity.isActive(),
+                entity.getRemarks(),
+                entity.getCreatedBy(),
+                entity.getCreatedDate(),
+                entity.getModifiedBy(),
+                entity.getModifiedDate(),
+                entity.getTransactions()
+        );
     }
-
 }

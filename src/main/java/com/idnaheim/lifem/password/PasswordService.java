@@ -30,18 +30,19 @@ public class PasswordService {
         });
     }
 
-    public PasswordEntity createPassword(PasswordEntity password) {
-        password.setPassword(encryptor.encrypt(password.getPassword()));
-        return passwordRepository.save(password);
+    public PasswordEntity createPassword(PasswordRequest request) {
+        PasswordEntity entity = request.toEntity();
+        entity.setPassword(encryptor.encrypt(request.password()));
+        return passwordRepository.save(entity);
     }
 
-    public Optional<PasswordEntity> updatePassword(long id, PasswordEntity updatedPassword) {
+    public Optional<PasswordEntity> updatePassword(long id, PasswordRequest request) {
         return passwordRepository.findById(id).map(existing -> {
-            existing.setPlatform(updatedPassword.getPlatform());
-            existing.setUsername(updatedPassword.getUsername());
-            existing.setPassword(encryptor.encrypt(updatedPassword.getPassword()));
-            existing.setHasMFA(updatedPassword.isHasMFA());
-            existing.setRemarks(updatedPassword.getRemarks());
+            existing.setPlatform(request.platform());
+            existing.setUsername(request.username());
+            existing.setPassword(encryptor.encrypt(request.password()));
+            existing.setHasMFA(request.hasMFA());
+            existing.setRemarks(request.remarks());
             return passwordRepository.save(existing);
         });
     }

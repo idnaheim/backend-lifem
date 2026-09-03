@@ -33,14 +33,14 @@ public class CalendarController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<?>> createEvent(@RequestBody CalendarEntity event) {
+    public ResponseEntity<ApiResponse<?>> createEvent(@RequestBody CalendarRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created(calendarService.createEvent(event)));
+                .body(ApiResponse.created(calendarService.createEvent(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<?>> updateEvent(@PathVariable long id, @RequestBody CalendarEntity event) {
-        return calendarService.updateEvent(id, event)
+    public ResponseEntity<ApiResponse<?>> updateEvent(@PathVariable long id, @RequestBody CalendarRequest request) {
+        return calendarService.updateEvent(id, request)
                 .<ResponseEntity<ApiResponse<?>>>map(updated -> ResponseEntity.ok(ApiResponse.success(updated)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.notFound()));
     }

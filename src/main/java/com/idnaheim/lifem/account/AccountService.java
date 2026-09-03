@@ -51,8 +51,8 @@ public class AccountService {
     }
 
     @Transactional
-    public void transfer(long fromAccountId, long toAccountId, double amount) {
-        if (amount <= 0) {
+    public void transfer(long fromAccountId, long toAccountId, BigDecimal amount) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Transfer amount must be greater than zero");
         }
 
@@ -62,12 +62,12 @@ public class AccountService {
         AccountEntity toAccount = accountRepository.findById(toAccountId)
                 .orElseThrow(() -> new IllegalArgumentException("Destination account not found: " + toAccountId));
 
-        if (fromAccount.getBalance().compareTo(BigDecimal.valueOf(amount)) < 0) {
+        if (fromAccount.getBalance().compareTo(amount) < 0) {
             throw new IllegalArgumentException("Insufficient balance in source account");
         }
 
-        fromAccount.setBalance(fromAccount.getBalance().subtract(BigDecimal.valueOf(amount)));
-        toAccount.setBalance(toAccount.getBalance().add(BigDecimal.valueOf(amount)));
+        fromAccount.setBalance(fromAccount.getBalance().subtract(amount));
+        toAccount.setBalance(toAccount.getBalance().add(amount));
 
         accountRepository.save(fromAccount);
         accountRepository.save(toAccount);
@@ -77,7 +77,7 @@ public class AccountService {
         debit.setAccount(fromAccount);
         debit.setCategory(TransactionCategory.TRANSFER);
         debit.setType(TransactionType.TRANSFER);
-        debit.setAmount(BigDecimal.valueOf(amount).negate());
+        debit.setAmount(amount.negate());
         debit.setRemarks("Transfer to " + toAccount.getName());
         transactionRepository.save(debit);
 
@@ -86,7 +86,7 @@ public class AccountService {
         credit.setAccount(toAccount);
         credit.setCategory(TransactionCategory.TRANSFER);
         credit.setType(TransactionType.TRANSFER);
-        credit.setAmount(BigDecimal.valueOf(amount));
+        credit.setAmount(amount);
         credit.setRemarks("Transfer from " + fromAccount.getName());
         transactionRepository.save(credit);
     }

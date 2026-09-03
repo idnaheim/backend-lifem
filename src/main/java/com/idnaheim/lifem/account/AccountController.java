@@ -49,7 +49,7 @@ public class AccountController {
     @PostMapping("/transfer")
     public ResponseEntity<ApiResponse<?>> transfer(@RequestBody TransferRequest request) {
         try {
-            accountService.transfer(request.getFromAccountId(), request.getToAccountId(), request.getAmount());
+            accountService.transfer(request.fromAccountId(), request.toAccountId(), request.amount());
             return ResponseEntity.ok(ApiResponse.success(200, "Transfer successful", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.badRequest(e.getMessage()));

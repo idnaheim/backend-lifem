@@ -121,17 +121,17 @@ public class IncomeService {
     }
 
     private void mapRequestToEntity(IncomeRequest request, IncomeEntity entity) {
-        entity.setName(request.getName());
-        entity.setSource(request.getSource());
-        entity.setAmount(request.getAmount());
-        entity.setCategory(request.getCategory());
-        entity.setFrequency(request.getFrequency());
+        entity.setName(request.name());
+        entity.setSource(request.source());
+        entity.setAmount(request.amount());
+        entity.setCategory(request.category());
+        entity.setFrequency(request.frequency());
         entity.setActive(request.isActive());
-        entity.setRemarks(request.getRemarks());
+        entity.setRemarks(request.remarks());
 
-        if (request.getAccountId() != null) {
-            AccountEntity account = accountRepository.findById(request.getAccountId())
-                    .orElseThrow(() -> new RuntimeException("Account not found: " + request.getAccountId()));
+        if (request.accountId() != null) {
+            AccountEntity account = accountRepository.findById(request.accountId())
+                    .orElseThrow(() -> new RuntimeException("Account not found: " + request.accountId()));
             entity.setAccount(account);
         } else {
             entity.setAccount(null);

@@ -1,7 +1,7 @@
 package com.idnaheim.lifem.calendar;
 
-import com.idnaheim.lifem.enums.EventCategory;
-import com.idnaheim.lifem.enums.EventFrequency;
+import com.idnaheim.lifem.enums.EnumBaseCategory;
+import com.idnaheim.lifem.enums.EnumBaseFrequency;
 import com.idnaheim.lifem.utilities.AuditingEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -35,10 +35,10 @@ public class CalendarEntity extends AuditingEntity implements Serializable {
     private boolean allDay;
 
     @Enumerated(EnumType.STRING)
-    private EventCategory category;
+    private EnumBaseCategory category;
 
     @Enumerated(EnumType.STRING)
-    private EventFrequency frequency;
+    private EnumBaseFrequency frequency;
 
     private String location;
 

@@ -3,8 +3,8 @@ package com.idnaheim.lifem.calendar;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.idnaheim.lifem.config.LocalDateToInstantDeserializer;
-import com.idnaheim.lifem.enums.EventCategory;
-import com.idnaheim.lifem.enums.EventFrequency;
+import com.idnaheim.lifem.enums.EnumBaseCategory;
+import com.idnaheim.lifem.enums.EnumBaseFrequency;
 
 import java.time.Instant;
 
@@ -16,8 +16,8 @@ public record CalendarRequest(
         @JsonDeserialize(using = LocalDateToInstantDeserializer.class)
         Instant endDate,
         @JsonProperty("allDay") boolean allDay,
-        EventCategory category,
-        EventFrequency frequency,
+        EnumBaseCategory category,
+        EnumBaseFrequency frequency,
         String location,
         @JsonProperty("reminderEnabled") boolean reminderEnabled,
         Integer reminderMinutesBefore

@@ -1,9 +1,8 @@
 package com.idnaheim.lifem.transaction;
 
 import com.idnaheim.lifem.account.AccountEntity;
-import com.idnaheim.lifem.enums.AccountCategory;
-import com.idnaheim.lifem.enums.TransactionCategory;
-import com.idnaheim.lifem.enums.TransactionType;
+import com.idnaheim.lifem.enums.EnumBaseCategory;
+import com.idnaheim.lifem.enums.EnumTransactionType;
 import com.idnaheim.lifem.expense.ExpenseEntity;
 import com.idnaheim.lifem.income.IncomeEntity;
 import com.idnaheim.lifem.utilities.AuditingEntity;
@@ -15,6 +14,8 @@ import lombok.Setter;
 import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
@@ -45,14 +46,16 @@ public class TransactionEntity extends AuditingEntity implements Serializable {
     private IncomeEntity income;
 
     @Enumerated(EnumType.STRING)
-    private TransactionCategory category;
+    private EnumBaseCategory category;
 
     @Enumerated(EnumType.STRING)
-    private TransactionType type;
+    private EnumTransactionType type;
 
     private BigDecimal amount;
 
     private String remarks;
+
+    private LocalDateTime transactionDateTime;
 
     @PrePersist
     private void generateReferenceNo() {

@@ -1,7 +1,7 @@
 package com.idnaheim.lifem.account;
 
-import com.idnaheim.lifem.enums.TransactionCategory;
-import com.idnaheim.lifem.enums.TransactionType;
+import com.idnaheim.lifem.enums.EnumBaseCategory;
+import com.idnaheim.lifem.enums.EnumTransactionType;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.transaction.TransactionRepository;
 import lombok.AllArgsConstructor;
@@ -75,8 +75,8 @@ public class AccountService {
         // Record debit transaction (from account)
         TransactionEntity debit = new TransactionEntity();
         debit.setAccount(fromAccount);
-        debit.setCategory(TransactionCategory.TRANSFER);
-        debit.setType(TransactionType.TRANSFER);
+        debit.setCategory(EnumBaseCategory.OTHER);
+        debit.setType(EnumTransactionType.TRANSFER);
         debit.setAmount(amount.negate());
         debit.setRemarks("Transfer to " + toAccount.getName());
         transactionRepository.save(debit);
@@ -84,8 +84,8 @@ public class AccountService {
         // Record credit transaction (to account)
         TransactionEntity credit = new TransactionEntity();
         credit.setAccount(toAccount);
-        credit.setCategory(TransactionCategory.TRANSFER);
-        credit.setType(TransactionType.TRANSFER);
+        credit.setCategory(EnumBaseCategory.OTHER);
+        credit.setType(EnumTransactionType.TRANSFER);
         credit.setAmount(amount);
         credit.setRemarks("Transfer from " + fromAccount.getName());
         transactionRepository.save(credit);

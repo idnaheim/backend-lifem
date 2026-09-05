@@ -1,7 +1,8 @@
 package com.idnaheim.lifem.calendar;
 
-import com.idnaheim.lifem.enums.EventCategory;
-import com.idnaheim.lifem.enums.EventFrequency;
+import com.idnaheim.lifem.enums.EnumBaseCategory;
+import com.idnaheim.lifem.enums.EnumBaseFrequency;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 
@@ -12,8 +13,8 @@ public record CalendarResponse(
     Instant startDate,
     Instant endDate,
     boolean allDay,
-    EventCategory category,
-    EventFrequency frequency,
+    EnumBaseCategory category,
+    EnumBaseFrequency frequency,
     String location,
     boolean reminderEnabled,
     Integer reminderMinutesBefore,

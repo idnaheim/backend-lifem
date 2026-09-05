@@ -1,7 +1,7 @@
 package com.idnaheim.lifem.account;
 
-import com.idnaheim.lifem.enums.AccountCategory;
-import com.idnaheim.lifem.enums.AccountType;
+import com.idnaheim.lifem.enums.EnumAccountCategory;
+import com.idnaheim.lifem.enums.EnumAccountType;
 import com.idnaheim.lifem.utilities.AuditingEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -30,10 +30,10 @@ public class AccountEntity extends AuditingEntity implements Serializable {
     private BigDecimal balance;
 
     @Enumerated(EnumType.STRING)
-    private AccountCategory category;
+    private EnumAccountCategory category;
 
     @Enumerated(EnumType.STRING)
-    private AccountType type;
+    private EnumAccountType type;
 
     private String remarks;
 

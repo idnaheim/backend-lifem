@@ -1,6 +1,6 @@
 package com.idnaheim.lifem.enums;
 
-public enum AccountType {
+public enum EnumAccountType {
     SAVINGS,
     CHECKING,
     CURRENT,

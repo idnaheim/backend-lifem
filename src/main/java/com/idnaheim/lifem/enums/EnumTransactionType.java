@@ -1,6 +1,6 @@
 package com.idnaheim.lifem.enums;
 
-public enum TransactionType {
+public enum EnumTransactionType {
     INCOME,
     EXPENSE,
     TRANSFER

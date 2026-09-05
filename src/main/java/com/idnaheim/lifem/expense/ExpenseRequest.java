@@ -3,20 +3,20 @@ package com.idnaheim.lifem.expense;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.idnaheim.lifem.config.LocalDateToInstantDeserializer;
-import com.idnaheim.lifem.enums.ExpenseCategory;
-import com.idnaheim.lifem.enums.ExpenseFrequency;
+import com.idnaheim.lifem.enums.EnumBaseCategory;
+import com.idnaheim.lifem.enums.EnumBaseFrequency;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
 public record ExpenseRequest(
         String name,
-        ExpenseFrequency frequency,
+        EnumBaseFrequency frequency,
         BigDecimal amount,
         String description,
         @JsonDeserialize(using = LocalDateToInstantDeserializer.class)
         Instant paymentStartDate,
-        ExpenseCategory category,
+        EnumBaseCategory category,
         @JsonProperty("fixedAmount") Boolean isFixedAmount,
         @JsonProperty("active") Boolean isActive
 ) {

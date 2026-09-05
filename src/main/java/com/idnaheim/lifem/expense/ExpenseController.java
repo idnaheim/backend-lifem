@@ -1,6 +1,6 @@
 package com.idnaheim.lifem.expense;
 
-import com.idnaheim.lifem.enums.ExpenseFrequency;
+import com.idnaheim.lifem.enums.EnumBaseFrequency;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.utilities.CustomResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,7 +29,7 @@ public class ExpenseController {
                description = "Returns projected expense totals grouped by frequency (DAILY, WEEKLY, MONTHLY, etc.).")
     @ApiResponse(responseCode = "200", description = "Run-rate calculated successfully")
     @GetMapping("/runrate")
-    public ResponseEntity<CustomResponse<Map<ExpenseFrequency, BigDecimal>>> getRunRateExpenses() {
+    public ResponseEntity<CustomResponse<Map<EnumBaseFrequency, BigDecimal>>> getRunRateExpenses() {
         return ResponseEntity.ok(CustomResponse.success(expenseService.getRunRateExpenses()));
     }
 

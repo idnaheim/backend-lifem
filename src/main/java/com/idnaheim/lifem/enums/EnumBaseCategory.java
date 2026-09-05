@@ -1,16 +1,19 @@
 package com.idnaheim.lifem.enums;
 
-public enum TransactionCategory {
+public enum EnumBaseCategory {
     HOUSING,
     CAR,
     FOOD,
     OFFICE,
-    TRAVEL,
     LEISURE,
-    SHOPPING,
     HEALTH,
+    OTHER,
+    TRAVEL,
+    SHOPPING,
     SALARY,
     INVESTMENT,
-    OTHER,
-    TRANSFER
+    INTEREST,
+    PERSONAL,
+    WORK,
+    FINANCE
 }

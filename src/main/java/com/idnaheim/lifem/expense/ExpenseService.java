@@ -2,8 +2,8 @@ package com.idnaheim.lifem.expense;
 
 import com.idnaheim.lifem.account.AccountEntity;
 import com.idnaheim.lifem.account.AccountRepository;
-import com.idnaheim.lifem.enums.ExpenseFrequency;
-import com.idnaheim.lifem.enums.TransactionType;
+import com.idnaheim.lifem.enums.EnumBaseFrequency;
+import com.idnaheim.lifem.enums.EnumTransactionType;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.transaction.TransactionRepository;
 import lombok.AllArgsConstructor;
@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -30,9 +29,9 @@ public class ExpenseService {
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
 
-    public Map<ExpenseFrequency, BigDecimal> getRunRateExpenses() {
+    public Map<EnumBaseFrequency, BigDecimal> getRunRateExpenses() {
         List<ExpenseEntity> expenses = expenseRepository.findAll();
-        Map<ExpenseFrequency, BigDecimal> result = new HashMap<>();
+        Map<EnumBaseFrequency, BigDecimal> result = new HashMap<>();
         
         BigDecimal monthly = BigDecimal.ZERO;
         BigDecimal quarterly = BigDecimal.ZERO;
@@ -51,13 +50,13 @@ public class ExpenseService {
                 case QUARTERLY:
                     quarterly = quarterly.add(amount);
                     break;
-                case SEMI_ANNUAL:
+                case BIYEARLY:
                     semiAnnual = semiAnnual.add(amount);
                     break;
-                case ANNUAL:
+                case YEARLY:
                     annual = annual.add(amount);
                     break;
-                case ONE_TIME:
+                case ONCE:
                     oneTime = oneTime.add(amount);
                     break;
             }
@@ -67,10 +66,10 @@ public class ExpenseService {
         BigDecimal aggregatedSemiAnnual = semiAnnual.add(aggregatedQuarterly.multiply(BigDecimal.valueOf(2)));
         BigDecimal aggregatedAnnual = annual.add(aggregatedSemiAnnual.multiply(BigDecimal.valueOf(2)).add(oneTime));
         
-        result.put(ExpenseFrequency.MONTHLY, monthly);
-        result.put(ExpenseFrequency.QUARTERLY, aggregatedQuarterly);
-        result.put(ExpenseFrequency.SEMI_ANNUAL, aggregatedSemiAnnual);
-        result.put(ExpenseFrequency.ANNUAL, aggregatedAnnual);
+        result.put(EnumBaseFrequency.MONTHLY, monthly);
+        result.put(EnumBaseFrequency.QUARTERLY, aggregatedQuarterly);
+        result.put(EnumBaseFrequency.BIYEARLY, aggregatedSemiAnnual);
+        result.put(EnumBaseFrequency.YEARLY, aggregatedAnnual);
         
         return result;
     }
@@ -101,12 +100,25 @@ public class ExpenseService {
                 start = startOfQuarter.atStartOfDay();
                 end = endOfQuarter.atTime(LocalTime.MAX);
                 break;
-            case ONE_TIME:
+            case BIYEARLY:
+                int semiStartMonth = now.getMonthValue() <= 6 ? 1 : 7;
+                LocalDate startOfHalf = now.withMonth(semiStartMonth).withDayOfMonth(1);
+                LocalDate endOfHalf = startOfHalf.plusMonths(5)
+                        .withDayOfMonth(startOfHalf.plusMonths(5).lengthOfMonth());
+                start = startOfHalf.atStartOfDay();
+                end = endOfHalf.atTime(LocalTime.MAX);
+                break;
+            case YEARLY:
+                start = now.withDayOfYear(1).atStartOfDay();
+                end = now.withDayOfYear(now.lengthOfYear()).atTime(LocalTime.MAX);
+                break;
+            case ONCE:
+            case UNPLANNED:
                 start = LocalDateTime.of(2000, 1, 1, 0, 0);
                 end = LocalDateTime.of(2099, 12, 31, 23, 59, 59);
                 break;
             default:
-                // MONTHLY
+                // MONTHLY, DAILY, WEEKLY fall back to current month window
                 start = now.withDayOfMonth(1).atStartOfDay();
                 end = now.withDayOfMonth(now.lengthOfMonth()).atTime(LocalTime.MAX);
                 break;
@@ -121,7 +133,7 @@ public class ExpenseService {
                 expense.getId(), start, end));
 
         // Calculate missed payments from paymentStartDate
-        if (expense.getPaymentStartDate() != null && expense.getFrequency() != ExpenseFrequency.ONE_TIME) {
+        if (expense.getPaymentStartDate() != null && expense.getFrequency() != EnumBaseFrequency.ONCE) {
             LocalDateTime paymentStart = LocalDateTime.ofInstant(
                     expense.getPaymentStartDate(), ZoneId.systemDefault());
             long expectedPayments = calculateExpectedPayments(paymentStart, now, expense.getFrequency());
@@ -134,7 +146,7 @@ public class ExpenseService {
         }
     }
 
-    private long calculateExpectedPayments(LocalDateTime startDate, LocalDate now, ExpenseFrequency frequency) {
+    private long calculateExpectedPayments(LocalDateTime startDate, LocalDate now, EnumBaseFrequency frequency) {
         LocalDate start = startDate.toLocalDate();
         if (start.isAfter(now)) {
             return 0;
@@ -197,7 +209,8 @@ public class ExpenseService {
         TransactionEntity transaction = new TransactionEntity();
         transaction.setAccount(account);
         transaction.setExpense(expense);
-        transaction.setType(TransactionType.EXPENSE);
+        transaction.setCategory(expense.getCategory());
+        transaction.setType(EnumTransactionType.EXPENSE);
         transaction.setAmount(deductionAmount.negate());
         transaction.setRemarks(remarks);
 

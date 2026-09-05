@@ -1,8 +1,8 @@
 package com.idnaheim.lifem.expense;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.idnaheim.lifem.enums.ExpenseCategory;
-import com.idnaheim.lifem.enums.ExpenseFrequency;
+import com.idnaheim.lifem.enums.EnumBaseCategory;
+import com.idnaheim.lifem.enums.EnumBaseFrequency;
 import com.idnaheim.lifem.transaction.TransactionResponse;
 
 import java.math.BigDecimal;
@@ -14,11 +14,11 @@ import java.util.List;
 public record ExpenseResponse(
     long id,
     String name,
-    ExpenseFrequency frequency,
+    EnumBaseFrequency frequency,
     BigDecimal amount,
     String description,
     Instant paymentStartDate,
-    ExpenseCategory category,
+    EnumBaseCategory category,
     @JsonProperty("fixedAmount") 
     boolean isFixedAmount,
     @JsonProperty("active") 

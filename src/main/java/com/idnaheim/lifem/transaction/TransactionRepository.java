@@ -15,6 +15,8 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
 
     List<TransactionEntity> findByExpenseIdAndCreatedDateBetween(long expenseId, LocalDateTime start, LocalDateTime end);
 
+    boolean existsByIncomeIdAndCreatedDateBetween(long incomeId, LocalDateTime start, LocalDateTime end);
+
     List<TransactionEntity> findByIncomeIdAndCreatedDateBetween(long incomeId, LocalDateTime start, LocalDateTime end);
 
     long countByIncomeIdAndCreatedDateAfter(long incomeId, LocalDateTime after);

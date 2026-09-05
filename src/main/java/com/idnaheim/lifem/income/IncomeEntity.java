@@ -1,8 +1,8 @@
 package com.idnaheim.lifem.income;
 
 import com.idnaheim.lifem.account.AccountEntity;
-import com.idnaheim.lifem.enums.IncomeCategory;
-import com.idnaheim.lifem.enums.IncomeFrequency;
+import com.idnaheim.lifem.enums.EnumBaseCategory;
+import com.idnaheim.lifem.enums.EnumBaseFrequency;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.utilities.AuditingEntity;
 import jakarta.persistence.*;
@@ -34,10 +34,10 @@ public class IncomeEntity extends AuditingEntity implements Serializable {
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
-    private IncomeCategory category;
+    private EnumBaseCategory category;
 
     @Enumerated(EnumType.STRING)
-    private IncomeFrequency frequency;
+    private EnumBaseFrequency frequency;
 
     @ManyToOne
     private AccountEntity account;
@@ -45,6 +45,12 @@ public class IncomeEntity extends AuditingEntity implements Serializable {
     private boolean isActive;
 
     private String remarks;
+
+    @Transient
+    private boolean isReceived;
+
+    @Transient
+    private long missedPayments;
 
     @Transient
     private List<TransactionEntity> transactions;

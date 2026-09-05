@@ -24,8 +24,12 @@ public class TransactionController {
     @Operation(summary = "List all transactions")
     @ApiResponse(responseCode = "200", description = "Transactions retrieved successfully")
     @GetMapping
-    public ResponseEntity<CustomResponse<List<TransactionEntity>>> getAllTransactions() {
-        return ResponseEntity.ok(CustomResponse.success(transactionService.getAllTransactions()));
+    public ResponseEntity<CustomResponse<List<TransactionResponse>>> getAllTransactions() {
+        List<TransactionResponse> response = transactionService.getAllTransactions()
+                .stream()
+                .map(TransactionResponse::fromEntity)
+                .toList();
+        return ResponseEntity.ok(CustomResponse.success(response));
     }
 
     @Operation(summary = "Get transaction by ID")
@@ -34,10 +38,11 @@ public class TransactionController {
         @ApiResponse(responseCode = "404", description = "Transaction not found")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<CustomResponse<TransactionEntity>> getTransactionById(
+    public ResponseEntity<CustomResponse<TransactionResponse>> getTransactionById(
             @Parameter(description = "Transaction ID") @PathVariable long id) {
         return transactionService.getTransactionById(id)
-                .<ResponseEntity<CustomResponse<TransactionEntity>>>map(transaction -> ResponseEntity.ok(CustomResponse.success(transaction)))
+                .map(TransactionResponse::fromEntity)
+                .<ResponseEntity<CustomResponse<TransactionResponse>>>map(response -> ResponseEntity.ok(CustomResponse.success(response)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -48,9 +53,13 @@ public class TransactionController {
         @ApiResponse(responseCode = "400", description = "Invalid request body")
     })
     @PostMapping
-    public ResponseEntity<CustomResponse<TransactionEntity>> createTransaction(@RequestBody TransactionEntity transaction) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(CustomResponse.created(transactionService.createTransaction(transaction)));
+    public ResponseEntity<CustomResponse<TransactionResponse>> createTransaction(@RequestBody TransactionRequest request) {
+        try {
+            TransactionResponse response = TransactionResponse.fromEntity(transactionService.createTransaction(request));
+            return ResponseEntity.status(HttpStatus.CREATED).body(CustomResponse.created(response));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CustomResponse.badRequest(e.getMessage()));
+        }
     }
 
     @Operation(summary = "Update a transaction")
@@ -59,11 +68,12 @@ public class TransactionController {
         @ApiResponse(responseCode = "404", description = "Transaction not found")
     })
     @PutMapping("/{id}")
-    public ResponseEntity<CustomResponse<TransactionEntity>> updateTransaction(
+    public ResponseEntity<CustomResponse<TransactionResponse>> updateTransaction(
             @Parameter(description = "Transaction ID") @PathVariable long id,
             @RequestBody TransactionRequest request) {
         return transactionService.updateTransaction(id, request)
-                .<ResponseEntity<CustomResponse<TransactionEntity>>>map(updated -> ResponseEntity.ok(CustomResponse.success(updated)))
+                .map(TransactionResponse::fromEntity)
+                .<ResponseEntity<CustomResponse<TransactionResponse>>>map(response -> ResponseEntity.ok(CustomResponse.success(response)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(CustomResponse.notFound()));
     }
 
@@ -88,10 +98,10 @@ public class TransactionController {
         @ApiResponse(responseCode = "400", description = "Invalid data (e.g. account or expense not found)")
     })
     @PostMapping("/expense")
-    public ResponseEntity<CustomResponse<TransactionEntity>> recordExpense(@RequestBody TransactionRequest request) {
+    public ResponseEntity<CustomResponse<TransactionResponse>> recordExpense(@RequestBody TransactionRequest request) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(CustomResponse.created(transactionService.recordExpense(request)));
+            TransactionResponse response = TransactionResponse.fromEntity(transactionService.recordExpense(request));
+            return ResponseEntity.status(HttpStatus.CREATED).body(CustomResponse.created(response));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CustomResponse.badRequest(e.getMessage()));
         }
@@ -104,10 +114,10 @@ public class TransactionController {
         @ApiResponse(responseCode = "400", description = "Invalid data (e.g. account or income not found)")
     })
     @PostMapping("/income")
-    public ResponseEntity<CustomResponse<TransactionEntity>> recordIncome(@RequestBody TransactionRequest request) {
+    public ResponseEntity<CustomResponse<TransactionResponse>> recordIncome(@RequestBody TransactionRequest request) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(CustomResponse.created(transactionService.recordIncome(request)));
+            TransactionResponse response = TransactionResponse.fromEntity(transactionService.recordIncome(request));
+            return ResponseEntity.status(HttpStatus.CREATED).body(CustomResponse.created(response));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CustomResponse.badRequest(e.getMessage()));
         }

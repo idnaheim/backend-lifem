@@ -1,6 +1,8 @@
 package com.idnaheim.lifem.income;
 
-import com.idnaheim.lifem.transaction.TransactionEntity;
+
+import com.idnaheim.lifem.enums.EnumBaseFrequency;
+import com.idnaheim.lifem.transaction.TransactionResponse;
 import com.idnaheim.lifem.utilities.CustomResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,6 +17,9 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 
+import java.util.Map;
+
+
 @RestController
 @RequestMapping("/incomes")
 @AllArgsConstructor
@@ -22,6 +27,14 @@ import java.util.List;
 public class IncomeController {
 
     private final IncomeService incomeService;
+
+    @Operation(summary = "Get income run-rate",
+               description = "Returns projected income totals grouped by frequency (WEEKLY, MONTHLY, QUARTERLY, YEARLY).")
+    @ApiResponse(responseCode = "200", description = "Run-rate calculated successfully")
+    @GetMapping("/runrate")
+    public ResponseEntity<CustomResponse<Map<EnumBaseFrequency, BigDecimal>>> getRunRateIncomes() {
+        return ResponseEntity.ok(CustomResponse.success(incomeService.getRunRateIncomes()));
+    }
 
     @Operation(summary = "List all income sources")
     @ApiResponse(responseCode = "200", description = "Incomes retrieved successfully")
@@ -97,13 +110,15 @@ public class IncomeController {
         @ApiResponse(responseCode = "404", description = "Income not found")
     })
     @PostMapping("/{id}/receive")
-    public ResponseEntity<CustomResponse<TransactionEntity>> receiveIncome(
+    public ResponseEntity<CustomResponse<TransactionResponse>> receiveIncome(
+
             @Parameter(description = "Income ID") @PathVariable long id,
             @Parameter(description = "Account ID to credit") @RequestParam long accountId,
             @Parameter(description = "Amount received") @RequestParam BigDecimal amount,
             @Parameter(description = "Optional remarks") @RequestParam(required = false) String remarks) {
         try {
-            return ResponseEntity.ok(CustomResponse.success(incomeService.receiveIncome(id, accountId, amount, remarks)));
+            return ResponseEntity.ok(CustomResponse.success(
+                    TransactionResponse.fromEntity(incomeService.receiveIncome(id, accountId, amount, remarks))));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CustomResponse.badRequest(e.getMessage()));
         }

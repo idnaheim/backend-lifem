@@ -1,7 +1,7 @@
 package com.idnaheim.lifem.account;
 
-import com.idnaheim.lifem.enums.AccountCategory;
-import com.idnaheim.lifem.enums.AccountType;
+import com.idnaheim.lifem.enums.EnumAccountCategory;
+import com.idnaheim.lifem.enums.EnumAccountType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -9,8 +9,8 @@ public record AccountResponse(
     long id,
     String name,
     BigDecimal balance,
-    AccountCategory category,
-    AccountType type,
+    EnumAccountCategory category,
+    EnumAccountType type,
     String remarks,
     String createdBy,
     LocalDateTime createdDate,

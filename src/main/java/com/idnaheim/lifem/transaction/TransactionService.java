@@ -2,7 +2,7 @@ package com.idnaheim.lifem.transaction;
 
 import com.idnaheim.lifem.account.AccountEntity;
 import com.idnaheim.lifem.account.AccountRepository;
-import com.idnaheim.lifem.enums.TransactionType;
+import com.idnaheim.lifem.enums.EnumTransactionType;
 import com.idnaheim.lifem.expense.ExpenseEntity;
 import com.idnaheim.lifem.expense.ExpenseRepository;
 import com.idnaheim.lifem.income.IncomeEntity;
@@ -32,10 +32,34 @@ public class TransactionService {
         return transactionRepository.findById(id);
     }
 
-    public TransactionEntity createTransaction(TransactionEntity transaction) {
+    public TransactionEntity createTransaction(TransactionRequest request) {
+        AccountEntity account = accountRepository.findById(request.getAccountId())
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + request.getAccountId()));
+
+        TransactionEntity transaction = new TransactionEntity();
+        transaction.setAccount(account);
+        transaction.setType(request.getType());
+        transaction.setCategory(request.getCategory());
+        transaction.setAmount(request.getAmount());
+        transaction.setRemarks(request.getRemarks());
+        transaction.setTransactionDateTime(request.getTransactionDateTime());
+
+        if (request.getExpenseId() != null) {
+            ExpenseEntity expense = expenseRepository.findById(request.getExpenseId())
+                    .orElseThrow(() -> new IllegalArgumentException("Expense not found: " + request.getExpenseId()));
+            transaction.setExpense(expense);
+        }
+
+        if (request.getIncomeId() != null) {
+            IncomeEntity income = incomeRepository.findById(request.getIncomeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Income not found: " + request.getIncomeId()));
+            transaction.setIncome(income);
+        }
+
         return transactionRepository.save(transaction);
     }
 
+    @Transactional
     public Optional<TransactionEntity> updateTransaction(long id, TransactionRequest request) {
         return transactionRepository.findById(id).map(existing -> {
             AccountEntity account = accountRepository.findById(request.getAccountId())
@@ -44,6 +68,7 @@ public class TransactionService {
             existing.setCategory(request.getCategory());
             existing.setAmount(request.getAmount());
             existing.setRemarks(request.getRemarks());
+            existing.setTransactionDateTime(request.getTransactionDateTime());
 
             if (request.getExpenseId() != null) {
                 ExpenseEntity expense = expenseRepository.findById(request.getExpenseId())
@@ -86,9 +111,6 @@ public class TransactionService {
 
     @Transactional
     public TransactionEntity recordExpense(TransactionRequest request) {
-        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
 
         AccountEntity account = accountRepository.findById(request.getAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + request.getAccountId()));
@@ -100,10 +122,11 @@ public class TransactionService {
         // Create transaction record
         TransactionEntity transaction = new TransactionEntity();
         transaction.setAccount(account);
-        transaction.setType(TransactionType.EXPENSE);
+        transaction.setType(EnumTransactionType.EXPENSE);
         transaction.setCategory(request.getCategory());
         transaction.setAmount(request.getAmount().negate());
         transaction.setRemarks(request.getRemarks());
+        transaction.setTransactionDateTime(request.getTransactionDateTime());
 
         if (request.getExpenseId() != null) {
             ExpenseEntity expense = expenseRepository.findById(request.getExpenseId())
@@ -136,10 +159,11 @@ public class TransactionService {
         // Create transaction record
         TransactionEntity transaction = new TransactionEntity();
         transaction.setAccount(account);
-        transaction.setType(TransactionType.INCOME);
+        transaction.setType(EnumTransactionType.INCOME);
         transaction.setCategory(request.getCategory());
         transaction.setAmount(request.getAmount());
         transaction.setRemarks(request.getRemarks());
+        transaction.setTransactionDateTime(request.getTransactionDateTime());
 
         if (request.getIncomeId() != null) {
             IncomeEntity income = incomeRepository.findById(request.getIncomeId())

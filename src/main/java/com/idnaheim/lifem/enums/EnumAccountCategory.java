@@ -1,6 +1,6 @@
 package com.idnaheim.lifem.enums;
 
-public enum AccountCategory {
+public enum EnumAccountCategory {
     BANK,
     CASH,
     E_WALLET

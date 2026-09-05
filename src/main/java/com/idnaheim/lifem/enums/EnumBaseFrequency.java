@@ -1,10 +1,12 @@
 package com.idnaheim.lifem.enums;
 
-public enum IncomeFrequency {
+public enum EnumBaseFrequency {
+    ONCE,
+    DAILY,
     WEEKLY,
-    BI_WEEKLY,
     MONTHLY,
     QUARTERLY,
+    BIYEARLY,
     YEARLY,
-    ONE_TIME
+    UNPLANNED
 }

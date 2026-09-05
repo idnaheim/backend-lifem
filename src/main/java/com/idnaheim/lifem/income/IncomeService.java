@@ -2,8 +2,8 @@ package com.idnaheim.lifem.income;
 
 import com.idnaheim.lifem.account.AccountEntity;
 import com.idnaheim.lifem.account.AccountRepository;
-import com.idnaheim.lifem.enums.IncomeFrequency;
-import com.idnaheim.lifem.enums.TransactionType;
+import com.idnaheim.lifem.enums.EnumBaseFrequency;
+import com.idnaheim.lifem.enums.EnumTransactionType;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.transaction.TransactionRepository;
 import lombok.AllArgsConstructor;
@@ -15,9 +15,12 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -27,30 +30,71 @@ public class IncomeService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
 
+    public Map<EnumBaseFrequency, BigDecimal> getRunRateIncomes() {
+        List<IncomeEntity> incomes = incomeRepository.findAll();
+        Map<EnumBaseFrequency, BigDecimal> result = new HashMap<>();
+
+        BigDecimal weekly = BigDecimal.ZERO;
+        BigDecimal monthly = BigDecimal.ZERO;
+        BigDecimal quarterly = BigDecimal.ZERO;
+        BigDecimal annual = BigDecimal.ZERO;
+        BigDecimal oneTime = BigDecimal.ZERO;
+
+        for (IncomeEntity income : incomes) {
+            if (!income.isActive()) continue;
+
+            BigDecimal amount = income.getAmount();
+            switch (income.getFrequency()) {
+                case WEEKLY:
+                    weekly = weekly.add(amount);
+                    break;
+                case MONTHLY:
+                    monthly = monthly.add(amount);
+                    break;
+                case QUARTERLY:
+                    quarterly = quarterly.add(amount);
+                    break;
+                case YEARLY:
+                    annual = annual.add(amount);
+                    break;
+                case ONCE:
+                    oneTime = oneTime.add(amount);
+                    break;
+            }
+        }
+
+        BigDecimal aggregatedMonthly = monthly.add(weekly.multiply(BigDecimal.valueOf(4)));
+        BigDecimal aggregatedQuarterly = quarterly.add(aggregatedMonthly.multiply(BigDecimal.valueOf(3)));
+        BigDecimal aggregatedAnnual = annual.add(aggregatedQuarterly.multiply(BigDecimal.valueOf(4)).add(oneTime));
+
+        result.put(EnumBaseFrequency.WEEKLY, weekly);
+        result.put(EnumBaseFrequency.MONTHLY, aggregatedMonthly);
+        result.put(EnumBaseFrequency.QUARTERLY, aggregatedQuarterly);
+        result.put(EnumBaseFrequency.YEARLY, aggregatedAnnual);
+
+        return result;
+    }
+
     public List<IncomeResponse> getAllIncomes() {
         List<IncomeEntity> incomes = incomeRepository.findAll();
-        incomes.forEach(this::populateTransactions);
-        return incomes.stream()
-                .map(IncomeResponse::fromEntity)
-                .collect(Collectors.toList());
+        incomes.forEach(this::populateIsReceived);
+        return incomes.stream().map(IncomeResponse::fromEntity).toList();
     }
 
     public List<IncomeResponse> getActiveIncomes() {
         List<IncomeEntity> incomes = incomeRepository.findByIsActiveTrue();
-        incomes.forEach(this::populateTransactions);
-        return incomes.stream()
-                .map(IncomeResponse::fromEntity)
-                .collect(Collectors.toList());
+        incomes.forEach(this::populateIsReceived);
+        return incomes.stream().map(IncomeResponse::fromEntity).toList();
     }
 
     public Optional<IncomeResponse> getIncomeById(long id) {
         return incomeRepository.findById(id).map(income -> {
-            populateTransactions(income);
+            populateIsReceived(income);
             return IncomeResponse.fromEntity(income);
         });
     }
 
-    private void populateTransactions(IncomeEntity income) {
+    private void populateIsReceived(IncomeEntity income) {
         LocalDateTime start;
         LocalDateTime end;
         LocalDate now = LocalDate.now();
@@ -60,17 +104,6 @@ public class IncomeService {
                 LocalDate startOfWeek = now.with(DayOfWeek.MONDAY);
                 start = startOfWeek.atStartOfDay();
                 end = startOfWeek.plusDays(6).atTime(LocalTime.MAX);
-                break;
-            case BI_WEEKLY:
-                // Use current two-week window from start of month
-                int dayOfMonth = now.getDayOfMonth();
-                if (dayOfMonth <= 15) {
-                    start = now.withDayOfMonth(1).atStartOfDay();
-                    end = now.withDayOfMonth(15).atTime(LocalTime.MAX);
-                } else {
-                    start = now.withDayOfMonth(16).atStartOfDay();
-                    end = now.withDayOfMonth(now.lengthOfMonth()).atTime(LocalTime.MAX);
-                }
                 break;
             case QUARTERLY:
                 int quarterStartMonth = ((now.getMonthValue() - 1) / 3) * 3 + 1;
@@ -84,7 +117,8 @@ public class IncomeService {
                 start = now.withDayOfYear(1).atStartOfDay();
                 end = now.withDayOfYear(now.lengthOfYear()).atTime(LocalTime.MAX);
                 break;
-            case ONE_TIME:
+            case ONCE:
+            case UNPLANNED:
                 start = LocalDateTime.of(2000, 1, 1, 0, 0);
                 end = LocalDateTime.of(2099, 12, 31, 23, 59, 59);
                 break;
@@ -95,8 +129,50 @@ public class IncomeService {
                 break;
         }
 
+        boolean receivedThisPeriod = transactionRepository.existsByIncomeIdAndCreatedDateBetween(
+                income.getId(), start, end);
+        income.setReceived(receivedThisPeriod);
+
         income.setTransactions(transactionRepository.findByIncomeIdAndCreatedDateBetween(
                 income.getId(), start, end));
+
+        // Calculate missed payments from the income's creation date
+        if (income.getFrequency() != EnumBaseFrequency.ONCE) {
+            LocalDateTime incomeStart = income.getCreatedDate() != null
+                    ? income.getCreatedDate().atZone(ZoneId.systemDefault()).toLocalDateTime()
+                    : null;
+            if (incomeStart != null) {
+                long expectedPayments = calculateExpectedPayments(incomeStart, now, income.getFrequency());
+                long actualPayments = transactionRepository.countByIncomeIdAndCreatedDateAfter(
+                        income.getId(), incomeStart);
+                long missed = expectedPayments - actualPayments;
+                income.setMissedPayments(Math.max(0, missed));
+            } else {
+                income.setMissedPayments(0);
+            }
+        } else {
+            income.setMissedPayments(0);
+        }
+    }
+
+    private long calculateExpectedPayments(LocalDateTime startDate, LocalDate now, EnumBaseFrequency frequency) {
+        LocalDate start = startDate.toLocalDate();
+        if (start.isAfter(now)) {
+            return 0;
+        }
+
+        switch (frequency) {
+            case WEEKLY:
+                return ChronoUnit.WEEKS.between(start, now) + 1;
+            case MONTHLY:
+                return ChronoUnit.MONTHS.between(start, now) + 1;
+            case QUARTERLY:
+                return ChronoUnit.MONTHS.between(start, now) / 3 + 1;
+            case YEARLY:
+                return ChronoUnit.YEARS.between(start, now) + 1;
+            default:
+                return 0;
+        }
     }
 
     public IncomeResponse createIncome(IncomeRequest request) {
@@ -146,15 +222,13 @@ public class IncomeService {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
 
-        // Add to account balance
         account.setBalance(account.getBalance().add(amount));
         accountRepository.save(account);
 
-        // Create transaction record
         TransactionEntity transaction = new TransactionEntity();
         transaction.setAccount(account);
         transaction.setIncome(income);
-        transaction.setType(TransactionType.INCOME);
+        transaction.setType(EnumTransactionType.INCOME);
         transaction.setAmount(amount);
         transaction.setRemarks(remarks != null && !remarks.isBlank() ? remarks : "Received from: " + income.getName());
 

@@ -150,6 +150,7 @@ public class ExpenseService {
         transaction.setType(EnumTransactionType.EXPENSE);
         transaction.setAmount(deductionAmount.negate());
         transaction.setRemarks(remarks);
+        transaction.setTransactionDateTime(LocalDateTime.now());
 
         return transactionRepository.save(transaction);
     }

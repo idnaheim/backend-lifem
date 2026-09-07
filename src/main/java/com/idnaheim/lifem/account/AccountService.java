@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -79,6 +80,7 @@ public class AccountService {
         debit.setType(EnumTransactionType.TRANSFER);
         debit.setAmount(amount.negate());
         debit.setRemarks("Transfer to " + toAccount.getName());
+        debit.setTransactionDateTime(LocalDateTime.now());
         transactionRepository.save(debit);
 
         // Record credit transaction (to account)
@@ -88,6 +90,7 @@ public class AccountService {
         credit.setType(EnumTransactionType.TRANSFER);
         credit.setAmount(amount);
         credit.setRemarks("Transfer from " + fromAccount.getName());
+        credit.setTransactionDateTime(LocalDateTime.now());
         transactionRepository.save(credit);
     }
 

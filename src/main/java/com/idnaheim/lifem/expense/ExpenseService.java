@@ -4,6 +4,8 @@ import com.idnaheim.lifem.account.AccountEntity;
 import com.idnaheim.lifem.account.AccountRepository;
 import com.idnaheim.lifem.enums.EnumBaseFrequency;
 import com.idnaheim.lifem.enums.EnumTransactionType;
+import com.idnaheim.lifem.income.IncomeEntity;
+import com.idnaheim.lifem.income.IncomeResponse;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.transaction.TransactionRepository;
 import lombok.AllArgsConstructor;
@@ -16,10 +18,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @AllArgsConstructor
@@ -75,92 +74,30 @@ public class ExpenseService {
     }
 
     public List<ExpenseResponse> getAllExpenses() {
-        List<ExpenseEntity> expenses = expenseRepository.findAll();
-        expenses.forEach(this::populateIsPaid);
-        return expenses.stream().map(ExpenseResponse::fromEntity).toList();
+        List<ExpenseEntity> result = new ArrayList<>();
+        for(ExpenseEntity expenseEntity : expenseRepository.findAll()) {
+            List<TransactionEntity> transactionsList = transactionRepository.findByExpenseId(expenseEntity.getId());
+            expenseEntity.setTransactions(transactionsList);
+            result.add(expenseEntity);
+        }
+        return result.stream().map(ExpenseResponse::fromEntity).toList();
     }
 
     public Optional<ExpenseResponse> getExpenseById(long id) {
-        Optional<ExpenseEntity> expense = expenseRepository.findById(id);
-        expense.ifPresent(this::populateIsPaid);
-        return expense.map(ExpenseResponse::fromEntity);
+
+        Optional<ExpenseEntity> expenseEntity = expenseRepository.findById(id);
+
+        if(expenseEntity.isPresent()) {
+            ExpenseEntity result = expenseEntity.get();
+            List<TransactionEntity> transactionsList = transactionRepository.findByExpenseId(result.getId());
+            result.setTransactions(transactionsList);
+            return Optional.of(ExpenseResponse.fromEntity(result));
+        }
+
+        return Optional.empty();
     }
 
-    private void populateIsPaid(ExpenseEntity expense) {
-        LocalDateTime start;
-        LocalDateTime end;
-        LocalDate now = LocalDate.now();
 
-        switch (expense.getFrequency()) {
-            case QUARTERLY:
-                int quarterStartMonth = ((now.getMonthValue() - 1) / 3) * 3 + 1;
-                LocalDate startOfQuarter = now.withMonth(quarterStartMonth).withDayOfMonth(1);
-                LocalDate endOfQuarter = startOfQuarter.plusMonths(2)
-                        .withDayOfMonth(startOfQuarter.plusMonths(2).lengthOfMonth());
-                start = startOfQuarter.atStartOfDay();
-                end = endOfQuarter.atTime(LocalTime.MAX);
-                break;
-            case BIYEARLY:
-                int semiStartMonth = now.getMonthValue() <= 6 ? 1 : 7;
-                LocalDate startOfHalf = now.withMonth(semiStartMonth).withDayOfMonth(1);
-                LocalDate endOfHalf = startOfHalf.plusMonths(5)
-                        .withDayOfMonth(startOfHalf.plusMonths(5).lengthOfMonth());
-                start = startOfHalf.atStartOfDay();
-                end = endOfHalf.atTime(LocalTime.MAX);
-                break;
-            case YEARLY:
-                start = now.withDayOfYear(1).atStartOfDay();
-                end = now.withDayOfYear(now.lengthOfYear()).atTime(LocalTime.MAX);
-                break;
-            case ONCE:
-            case UNPLANNED:
-                start = LocalDateTime.of(2000, 1, 1, 0, 0);
-                end = LocalDateTime.of(2099, 12, 31, 23, 59, 59);
-                break;
-            default:
-                // MONTHLY, DAILY, WEEKLY fall back to current month window
-                start = now.withDayOfMonth(1).atStartOfDay();
-                end = now.withDayOfMonth(now.lengthOfMonth()).atTime(LocalTime.MAX);
-                break;
-        }
-
-        boolean paidThisPeriod = transactionRepository.existsByExpenseIdAndCreatedDateBetween(
-                expense.getId(), start, end);
-        expense.setPaid(paidThisPeriod);
-
-        // Populate transactions for the current frequency period
-        expense.setTransactions(transactionRepository.findByExpenseIdAndCreatedDateBetween(
-                expense.getId(), start, end));
-
-        // Calculate missed payments from paymentStartDate
-        if (expense.getPaymentStartDate() != null && expense.getFrequency() != EnumBaseFrequency.ONCE) {
-            LocalDateTime paymentStart = LocalDateTime.ofInstant(
-                    expense.getPaymentStartDate(), ZoneId.systemDefault());
-            long expectedPayments = calculateExpectedPayments(paymentStart, now, expense.getFrequency());
-            long actualPayments = transactionRepository.countByExpenseIdAndCreatedDateAfter(
-                    expense.getId(), paymentStart);
-            long missed = expectedPayments - actualPayments;
-            expense.setMissedPayments(Math.max(0, missed));
-        } else {
-            expense.setMissedPayments(0);
-        }
-    }
-
-    private long calculateExpectedPayments(LocalDateTime startDate, LocalDate now, EnumBaseFrequency frequency) {
-        LocalDate start = startDate.toLocalDate();
-        if (start.isAfter(now)) {
-            return 0;
-        }
-
-        switch (frequency) {
-            case MONTHLY:
-                return ChronoUnit.MONTHS.between(start, now) + 1;
-            case QUARTERLY:
-                return ChronoUnit.MONTHS.between(start, now) / 3 + 1;
-            default:
-                return 0;
-        }
-    }
 
     @Transactional
     public ExpenseResponse createExpense(ExpenseEntity expense) {

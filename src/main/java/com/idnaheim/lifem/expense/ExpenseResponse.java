@@ -23,9 +23,6 @@ public record ExpenseResponse(
     boolean isFixedAmount,
     @JsonProperty("active") 
     boolean isActive,
-    @JsonProperty("paid") 
-    boolean isPaid,
-    long missedPayments,
     List<TransactionResponse> transactions,
     String createdBy,
     LocalDateTime createdDate,
@@ -47,8 +44,6 @@ public record ExpenseResponse(
             entity.getCategory(),
             entity.isFixedAmount(),
             entity.isActive(),
-            entity.isPaid(),
-            entity.getMissedPayments(),
             transactions,
             entity.getCreatedBy(),
             entity.getCreatedDate(),

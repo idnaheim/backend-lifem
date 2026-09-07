@@ -7,6 +7,7 @@ import com.idnaheim.lifem.enums.EnumTransactionType;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.transaction.TransactionRepository;
 import lombok.AllArgsConstructor;
+import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,10 +18,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @AllArgsConstructor
@@ -76,104 +74,46 @@ public class IncomeService {
     }
 
     public List<IncomeResponse> getAllIncomes() {
-        List<IncomeEntity> incomes = incomeRepository.findAll();
-        incomes.forEach(this::populateIsReceived);
-        return incomes.stream().map(IncomeResponse::fromEntity).toList();
+
+        List<IncomeEntity> result = new ArrayList<>();
+
+        for (IncomeEntity incomeEntity : incomeRepository.findAll()) {
+            List<TransactionEntity> transactionsList = transactionRepository.findByIncomeId(incomeEntity.getId());
+            incomeEntity.setTransactions(transactionsList);
+            result.add(incomeEntity);
+        }
+
+        return result.stream().map(IncomeResponse::fromEntity).toList();
     }
 
     public List<IncomeResponse> getActiveIncomes() {
-        List<IncomeEntity> incomes = incomeRepository.findByIsActiveTrue();
-        incomes.forEach(this::populateIsReceived);
-        return incomes.stream().map(IncomeResponse::fromEntity).toList();
+
+        List<IncomeEntity> result = new ArrayList<>();
+
+        for (IncomeEntity incomeEntity : incomeRepository.findByIsActiveTrue()) {
+            List<TransactionEntity> transactionsList = transactionRepository.findByIncomeId(incomeEntity.getId());
+            incomeEntity.setTransactions(transactionsList);
+            result.add(incomeEntity);
+        }
+
+        return result.stream().map(IncomeResponse::fromEntity).toList();
     }
+
 
     public Optional<IncomeResponse> getIncomeById(long id) {
-        return incomeRepository.findById(id).map(income -> {
-            populateIsReceived(income);
-            return IncomeResponse.fromEntity(income);
-        });
+
+        Optional<IncomeEntity> incomeEntity = incomeRepository.findById(id);
+
+        if(incomeEntity.isPresent()) {
+            IncomeEntity result = incomeEntity.get();
+            List<TransactionEntity> transactionsList = transactionRepository.findByIncomeId(result.getId());
+            result.setTransactions(transactionsList);
+            return Optional.of(IncomeResponse.fromEntity(result));
+        }
+
+        return Optional.empty();
     }
 
-    private void populateIsReceived(IncomeEntity income) {
-        LocalDateTime start;
-        LocalDateTime end;
-        LocalDate now = LocalDate.now();
-
-        switch (income.getFrequency()) {
-            case WEEKLY:
-                LocalDate startOfWeek = now.with(DayOfWeek.MONDAY);
-                start = startOfWeek.atStartOfDay();
-                end = startOfWeek.plusDays(6).atTime(LocalTime.MAX);
-                break;
-            case QUARTERLY:
-                int quarterStartMonth = ((now.getMonthValue() - 1) / 3) * 3 + 1;
-                LocalDate startOfQuarter = now.withMonth(quarterStartMonth).withDayOfMonth(1);
-                LocalDate endOfQuarter = startOfQuarter.plusMonths(2)
-                        .withDayOfMonth(startOfQuarter.plusMonths(2).lengthOfMonth());
-                start = startOfQuarter.atStartOfDay();
-                end = endOfQuarter.atTime(LocalTime.MAX);
-                break;
-            case YEARLY:
-                start = now.withDayOfYear(1).atStartOfDay();
-                end = now.withDayOfYear(now.lengthOfYear()).atTime(LocalTime.MAX);
-                break;
-            case ONCE:
-            case UNPLANNED:
-                start = LocalDateTime.of(2000, 1, 1, 0, 0);
-                end = LocalDateTime.of(2099, 12, 31, 23, 59, 59);
-                break;
-            default:
-                // MONTHLY
-                start = now.withDayOfMonth(1).atStartOfDay();
-                end = now.withDayOfMonth(now.lengthOfMonth()).atTime(LocalTime.MAX);
-                break;
-        }
-
-        boolean receivedThisPeriod = transactionRepository.existsByIncomeIdAndCreatedDateBetween(
-                income.getId(), start, end);
-        income.setReceived(receivedThisPeriod);
-
-        income.setTransactions(transactionRepository.findByIncomeIdAndCreatedDateBetween(
-                income.getId(), start, end));
-
-        // Calculate missed payments from the income's creation date
-        if (income.getFrequency() != EnumBaseFrequency.ONCE) {
-            LocalDateTime incomeStart = income.getCreatedDate() != null
-                    ? income.getCreatedDate().atZone(ZoneId.systemDefault()).toLocalDateTime()
-                    : null;
-            if (incomeStart != null) {
-                long expectedPayments = calculateExpectedPayments(incomeStart, now, income.getFrequency());
-                long actualPayments = transactionRepository.countByIncomeIdAndCreatedDateAfter(
-                        income.getId(), incomeStart);
-                long missed = expectedPayments - actualPayments;
-                income.setMissedPayments(Math.max(0, missed));
-            } else {
-                income.setMissedPayments(0);
-            }
-        } else {
-            income.setMissedPayments(0);
-        }
-    }
-
-    private long calculateExpectedPayments(LocalDateTime startDate, LocalDate now, EnumBaseFrequency frequency) {
-        LocalDate start = startDate.toLocalDate();
-        if (start.isAfter(now)) {
-            return 0;
-        }
-
-        switch (frequency) {
-            case WEEKLY:
-                return ChronoUnit.WEEKS.between(start, now) + 1;
-            case MONTHLY:
-                return ChronoUnit.MONTHS.between(start, now) + 1;
-            case QUARTERLY:
-                return ChronoUnit.MONTHS.between(start, now) / 3 + 1;
-            case YEARLY:
-                return ChronoUnit.YEARS.between(start, now) + 1;
-            default:
-                return 0;
-        }
-    }
 
     public IncomeResponse createIncome(IncomeRequest request) {
         IncomeEntity income = new IncomeEntity();

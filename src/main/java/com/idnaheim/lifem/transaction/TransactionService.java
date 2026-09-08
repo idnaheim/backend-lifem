@@ -7,6 +7,8 @@ import com.idnaheim.lifem.expense.ExpenseEntity;
 import com.idnaheim.lifem.expense.ExpenseRepository;
 import com.idnaheim.lifem.income.IncomeEntity;
 import com.idnaheim.lifem.income.IncomeRepository;
+import com.idnaheim.lifem.messaging.TransactionEvent;
+import com.idnaheim.lifem.messaging.TransactionEventProducer;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class TransactionService {
     private final AccountRepository accountRepository;
     private final ExpenseRepository expenseRepository;
     private final IncomeRepository incomeRepository;
+    private final TransactionEventProducer transactionEventProducer;
 
     public List<TransactionEntity> getAllTransactions() {
         return transactionRepository.findAll();
@@ -56,7 +59,9 @@ public class TransactionService {
             transaction.setIncome(income);
         }
 
-        return transactionRepository.save(transaction);
+        TransactionEntity saved = transactionRepository.save(transaction);
+        transactionEventProducer.publish(TransactionEvent.of("CREATED", saved));
+        return saved;
     }
 
     @Transactional
@@ -86,7 +91,9 @@ public class TransactionService {
                 existing.setIncome(null);
             }
 
-            return transactionRepository.save(existing);
+            TransactionEntity saved = transactionRepository.save(existing);
+            transactionEventProducer.publish(TransactionEvent.of("UPDATED", saved));
+            return saved;
         });
     }
 
@@ -140,7 +147,9 @@ public class TransactionService {
             transaction.setIncome(income);
         }
 
-        return transactionRepository.save(transaction);
+        TransactionEntity savedExpense = transactionRepository.save(transaction);
+        transactionEventProducer.publish(TransactionEvent.of("CREATED", savedExpense));
+        return savedExpense;
     }
 
     @Transactional
@@ -177,7 +186,9 @@ public class TransactionService {
             transaction.setExpense(expense);
         }
 
-        return transactionRepository.save(transaction);
+        TransactionEntity savedIncome = transactionRepository.save(transaction);
+        transactionEventProducer.publish(TransactionEvent.of("CREATED", savedIncome));
+        return savedIncome;
     }
 
 }

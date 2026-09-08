@@ -2,7 +2,7 @@
 
 A production-ready Spring Boot REST API for managing personal finances and scheduling. Lifem provides a structured backend for tracking accounts, income, expenses, calendar events, and credentials — with real-time balance management, event-driven transaction publishing, and Redis-backed caching.
 
-Live Demo:**[https://idnaheim.com](https://idnaheim.com)**
+Live Demo: **[https://idnaheim.com](https://idnaheim.com)**
 
 <img width="3834" height="1919" alt="image" src="https://github.com/user-attachments/assets/d1066a65-c1ad-4c8e-9e13-dd22fae0cbb5" />
 

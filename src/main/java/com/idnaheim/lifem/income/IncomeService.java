@@ -8,16 +8,14 @@ import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.transaction.TransactionRepository;
 import lombok.AllArgsConstructor;
 import org.apache.coyote.BadRequestException;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
@@ -28,6 +26,7 @@ public class IncomeService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
 
+    @Cacheable(value = "incomeRunRate")
     public Map<EnumBaseFrequency, BigDecimal> getRunRateIncomes() {
         List<IncomeEntity> incomes = incomeRepository.findAll();
         Map<EnumBaseFrequency, BigDecimal> result = new HashMap<>();
@@ -73,8 +72,8 @@ public class IncomeService {
         return result;
     }
 
+    @Cacheable(value = "incomes")
     public List<IncomeResponse> getAllIncomes() {
-
         List<IncomeEntity> result = new ArrayList<>();
 
         for (IncomeEntity incomeEntity : incomeRepository.findAll()) {
@@ -86,8 +85,8 @@ public class IncomeService {
         return result.stream().map(IncomeResponse::fromEntity).toList();
     }
 
+    @Cacheable(value = "activeIncomes")
     public List<IncomeResponse> getActiveIncomes() {
-
         List<IncomeEntity> result = new ArrayList<>();
 
         for (IncomeEntity incomeEntity : incomeRepository.findByIsActiveTrue()) {
@@ -99,12 +98,11 @@ public class IncomeService {
         return result.stream().map(IncomeResponse::fromEntity).toList();
     }
 
-
+    @Cacheable(value = "incomeById", key = "#id")
     public Optional<IncomeResponse> getIncomeById(long id) {
-
         Optional<IncomeEntity> incomeEntity = incomeRepository.findById(id);
 
-        if(incomeEntity.isPresent()) {
+        if (incomeEntity.isPresent()) {
             IncomeEntity result = incomeEntity.get();
             List<TransactionEntity> transactionsList = transactionRepository.findByIncomeId(result.getId());
             result.setTransactions(transactionsList);
@@ -114,13 +112,23 @@ public class IncomeService {
         return Optional.empty();
     }
 
-
+    @Caching(evict = {
+            @CacheEvict(value = "incomes", allEntries = true),
+            @CacheEvict(value = "activeIncomes", allEntries = true),
+            @CacheEvict(value = "incomeRunRate", allEntries = true)
+    })
     public IncomeResponse createIncome(IncomeRequest request) {
         IncomeEntity income = new IncomeEntity();
         mapRequestToEntity(request, income);
         return IncomeResponse.fromEntity(incomeRepository.save(income));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "incomes", allEntries = true),
+            @CacheEvict(value = "activeIncomes", allEntries = true),
+            @CacheEvict(value = "incomeById", key = "#id"),
+            @CacheEvict(value = "incomeRunRate", allEntries = true)
+    })
     public Optional<IncomeResponse> updateIncome(long id, IncomeRequest request) {
         return incomeRepository.findById(id).map(existing -> {
             mapRequestToEntity(request, existing);
@@ -128,6 +136,12 @@ public class IncomeService {
         });
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "incomes", allEntries = true),
+            @CacheEvict(value = "activeIncomes", allEntries = true),
+            @CacheEvict(value = "incomeById", key = "#id"),
+            @CacheEvict(value = "incomeRunRate", allEntries = true)
+    })
     public boolean deleteIncome(long id) {
         if (incomeRepository.existsById(id)) {
             incomeRepository.deleteById(id);
@@ -155,6 +169,12 @@ public class IncomeService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "incomes", allEntries = true),
+            @CacheEvict(value = "activeIncomes", allEntries = true),
+            @CacheEvict(value = "incomeById", key = "#incomeId"),
+            @CacheEvict(value = "incomeRunRate", allEntries = true)
+    })
     public TransactionEntity receiveIncome(long incomeId, long accountId, BigDecimal amount, String remarks) {
         IncomeEntity income = incomeRepository.findById(incomeId)
                 .orElseThrow(() -> new RuntimeException("Income not found"));

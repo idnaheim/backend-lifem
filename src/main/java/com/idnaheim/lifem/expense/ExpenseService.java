@@ -4,20 +4,17 @@ import com.idnaheim.lifem.account.AccountEntity;
 import com.idnaheim.lifem.account.AccountRepository;
 import com.idnaheim.lifem.enums.EnumBaseFrequency;
 import com.idnaheim.lifem.enums.EnumTransactionType;
-import com.idnaheim.lifem.income.IncomeEntity;
-import com.idnaheim.lifem.income.IncomeResponse;
 import com.idnaheim.lifem.transaction.TransactionEntity;
 import com.idnaheim.lifem.transaction.TransactionRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
@@ -28,19 +25,20 @@ public class ExpenseService {
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
 
+    @Cacheable(value = "expenseRunRate")
     public Map<EnumBaseFrequency, BigDecimal> getRunRateExpenses() {
         List<ExpenseEntity> expenses = expenseRepository.findAll();
         Map<EnumBaseFrequency, BigDecimal> result = new HashMap<>();
-        
+
         BigDecimal monthly = BigDecimal.ZERO;
         BigDecimal quarterly = BigDecimal.ZERO;
         BigDecimal semiAnnual = BigDecimal.ZERO;
         BigDecimal annual = BigDecimal.ZERO;
         BigDecimal oneTime = BigDecimal.ZERO;
-        
+
         for (ExpenseEntity expense : expenses) {
             if (!expense.isActive()) continue;
-            
+
             BigDecimal amount = expense.getAmount();
             switch (expense.getFrequency()) {
                 case MONTHLY:
@@ -64,18 +62,19 @@ public class ExpenseService {
         BigDecimal aggregatedQuarterly = quarterly.add(monthly.multiply(BigDecimal.valueOf(3)));
         BigDecimal aggregatedSemiAnnual = semiAnnual.add(aggregatedQuarterly.multiply(BigDecimal.valueOf(2)));
         BigDecimal aggregatedAnnual = annual.add(aggregatedSemiAnnual.multiply(BigDecimal.valueOf(2)).add(oneTime));
-        
+
         result.put(EnumBaseFrequency.MONTHLY, monthly);
         result.put(EnumBaseFrequency.QUARTERLY, aggregatedQuarterly);
         result.put(EnumBaseFrequency.BIYEARLY, aggregatedSemiAnnual);
         result.put(EnumBaseFrequency.YEARLY, aggregatedAnnual);
-        
+
         return result;
     }
 
+    @Cacheable(value = "expenses")
     public List<ExpenseResponse> getAllExpenses() {
         List<ExpenseEntity> result = new ArrayList<>();
-        for(ExpenseEntity expenseEntity : expenseRepository.findAll()) {
+        for (ExpenseEntity expenseEntity : expenseRepository.findAll()) {
             List<TransactionEntity> transactionsList = transactionRepository.findByExpenseId(expenseEntity.getId());
             expenseEntity.setTransactions(transactionsList);
             result.add(expenseEntity);
@@ -83,11 +82,11 @@ public class ExpenseService {
         return result.stream().map(ExpenseResponse::fromEntity).toList();
     }
 
+    @Cacheable(value = "expenseById", key = "#id")
     public Optional<ExpenseResponse> getExpenseById(long id) {
-
         Optional<ExpenseEntity> expenseEntity = expenseRepository.findById(id);
 
-        if(expenseEntity.isPresent()) {
+        if (expenseEntity.isPresent()) {
             ExpenseEntity result = expenseEntity.get();
             List<TransactionEntity> transactionsList = transactionRepository.findByExpenseId(result.getId());
             result.setTransactions(transactionsList);
@@ -97,14 +96,21 @@ public class ExpenseService {
         return Optional.empty();
     }
 
-
-
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "expenses", allEntries = true),
+            @CacheEvict(value = "expenseRunRate", allEntries = true)
+    })
     public ExpenseResponse createExpense(ExpenseEntity expense) {
         return ExpenseResponse.fromEntity(expenseRepository.save(expense));
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "expenses", allEntries = true),
+            @CacheEvict(value = "expenseById", key = "#id"),
+            @CacheEvict(value = "expenseRunRate", allEntries = true)
+    })
     public Optional<ExpenseResponse> updateExpense(long id, ExpenseEntity updatedExpense) {
         return expenseRepository.findById(id).map(existing -> {
             existing.setName(updatedExpense.getName());
@@ -119,6 +125,11 @@ public class ExpenseService {
         });
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "expenses", allEntries = true),
+            @CacheEvict(value = "expenseById", key = "#id"),
+            @CacheEvict(value = "expenseRunRate", allEntries = true)
+    })
     public boolean deleteExpense(long id) {
         if (expenseRepository.existsById(id)) {
             expenseRepository.deleteById(id);
@@ -128,6 +139,11 @@ public class ExpenseService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "expenses", allEntries = true),
+            @CacheEvict(value = "expenseById", key = "#expenseId"),
+            @CacheEvict(value = "expenseRunRate", allEntries = true)
+    })
     public TransactionEntity payExpense(long expenseId, long accountId, BigDecimal amount, String remarks) {
         ExpenseEntity expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new RuntimeException("Expense not found"));

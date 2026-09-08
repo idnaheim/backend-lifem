@@ -1,37 +1,62 @@
-# Lifem — Personal Life Management Backend
+# Lifem — Personal Life Management API
 
-A Spring Boot REST API for managing personal finances and life events. Track accounts, income, expenses, transactions, passwords, and calendar events — all in one place.
+A production-ready Spring Boot REST API for managing personal finances and scheduling. Lifem provides a structured backend for tracking accounts, income, expenses, calendar events, and credentials — with real-time balance management, event-driven transaction publishing, and Redis-backed caching.
 
 ---
 
 ## Table of Contents
 
 - [Overview](#overview)
+- [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
-- [Domain Modules](#domain-modules)
-- [REST API Reference](#rest-api-reference)
-- [Kafka Integration](#kafka-integration)
-- [Redis Caching](#redis-caching)
+- [API Documentation](#api-documentation)
 - [Data Model](#data-model)
 - [Configuration](#configuration)
-- [Running the Application](#running-the-application)
-- [Docker](#docker)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Local Development](#local-development)
+  - [Docker](#docker)
+- [CI/CD](#cicd)
 - [Project Structure](#project-structure)
 
 ---
 
 ## Overview
 
-Lifem is a personal life management backend that helps individuals track financial activity and personal events. Core capabilities:
+Lifem is a single-user personal finance and life management backend. It exposes a RESTful API that tracks every aspect of personal cash flow — from recurring income and expenses to one-off transactions, inter-account transfers, and a scheduled calendar — all wired to an immutable transaction ledger with Kafka event streaming.
 
-- **Account management** — bank, cash, and wallet accounts with real-time balance tracking
-- **Income & expense tracking** — recurring and one-time entries linked to accounts
-- **Transaction ledger** — immutable audit trail with auto-generated reference numbers
-- **Event streaming** — Kafka-powered event publishing for every recorded transaction
-- **Caching** — Redis-backed account cache to reduce database load
-- **Credential vault** — AES-encrypted password/credential storage
-- **Calendar & event scheduling** — personal event and calendar management
+---
+
+## Features
+
+### Financial Management
+- **Account tracking** — manage bank accounts, cash holdings, and e-wallets with live balance updates
+- **Inter-account transfers** — atomically debit the source and credit the destination, with full ledger entries on both sides
+- **Income management** — define recurring and one-time income sources; mark them as active or inactive; receive payments with a single action that credits the linked account and writes an immutable ledger entry
+- **Expense management** — define expenses with flexible frequencies; pay them with an action that debits the linked account and writes a ledger entry; flag fixed vs. variable amounts
+- **Run-rate projections** — aggregate active incomes and expenses into weekly / monthly / quarterly / annual projections automatically derived from each item's configured frequency
+
+### Transaction Ledger
+- Every financial action (income receipt, expense payment, transfer, or direct entry) creates an immutable `TransactionEntity` with an auto-generated 10-character reference number
+- Balance reversals happen automatically when a transaction is deleted, keeping accounts consistent
+- All transaction creates and updates publish a `TransactionEvent` to a Kafka topic for downstream processing or audit
+
+### Calendar
+- Full CRUD for personal scheduled events
+- Time-range queries return events ordered by start date
+- Supports reminders with configurable lead time (minutes before), recurrence frequency, and location
+
+### Password Vault
+- AES-encrypted credential storage for external platforms
+- Encrypts on write and decrypts on read using Spring Security's `TextEncryptor`
+- Stores platform name, username, password, MFA status, and remarks
+
+### Infrastructure
+- **Redis caching** — income and expense read paths (list, by-ID, run-rate) are cached with configurable TTLs; all mutating operations evict relevant cache entries granularly
+- **Kafka event streaming** — every transaction create or update publishes a `TransactionEvent` to the `lifem.transactions` topic, keyed by reference number
+- **OpenAPI / Swagger UI** — interactive API documentation available at [idnaheim.com:8080/swagger-ui/index.html](http://idnaheim.com:8080/swagger-ui/index.html)
+- **Spring Data JPA auditing** — every entity automatically tracks `createdBy`, `createdDate`, `modifiedBy`, `modifiedDate`
 
 ---
 
@@ -41,290 +66,74 @@ Lifem is a personal life management backend that helps individuals track financi
 |---|---|
 | Language | Java 21 |
 | Framework | Spring Boot 4.0.5 |
+| Web | Spring MVC (`spring-boot-starter-webmvc`) |
 | Persistence | Spring Data JPA + Hibernate (`ddl-auto=update`) |
-| Database | MySQL |
-| Caching | Redis via `spring-boot-starter-data-redis` |
-| Messaging | Apache Kafka via `spring-kafka` |
-| Serialization | Jackson (`jackson-databind`, `jackson-datatype-jsr310`) |
-| Security | Spring Security Crypto (AES `TextEncryptor`) |
-| Boilerplate reduction | Lombok 1.18.42 |
-| Build | Maven Wrapper (`mvnw`) |
-| Container | Docker — multi-stage build on `eclipse-temurin:21` |
+| Database | MySQL 8 |
+| Caching | Redis — `spring-boot-starter-data-redis` + `spring-boot-starter-cache` |
+| Messaging | Apache Kafka — `spring-kafka` |
+| Encryption | Spring Security Crypto — AES `TextEncryptor` |
+| Serialization | Jackson (`jackson-databind` + `jackson-datatype-jsr310`) |
+| API Documentation | springdoc-openapi 3.0.0 (OpenAPI 3 / Swagger UI) |
+| Boilerplate | Lombok 1.18.42 |
+| Build | Maven Wrapper (`mvnw` / `mvnw.cmd`) |
+| Container | Docker — multi-stage build on `eclipse-temurin:21-jre-jammy` |
+| CI/CD | Azure Pipelines (triggers on `deployments` branch) |
 
 ---
 
 ## Architecture
 
 ```
-HTTP Client
-     │
-     ▼
-[REST Controllers]  ─────────────────────────────────┐
-     │                                               │
-     ▼                                               ▼
-[Service Layer]                              [TransactionEventProducer]
-     │                                               │
-     ├──► [JPA Repositories] ──► MySQL               ▼
-     │                                        Kafka Topic
-     ├──► [Redis Cache]                    (lifem.transactions)
-     │       └── accounts (TTL: 5 min)              │
-     │       └── accountById (TTL: 5 min)           ▼
-     │                                    [TransactionEventConsumer]
-     └──► [TextEncryptor] (AES)                (in-memory log)
+┌────────────────────────────────────────────────────────────┐
+│                        REST Clients                        │
+└───────────────────────────┬────────────────────────────────┘
+                            │ HTTP
+┌───────────────────────────▼────────────────────────────────┐
+│               Spring MVC Controllers                        │
+│  /accounts  /incomes  /expenses  /transactions              │
+│  /calendar/events  /passwords                               │
+└────────┬──────────────────────────────────────┬────────────┘
+         │ Service calls                         │
+┌────────▼───────────────────┐       ┌──────────▼───────────┐
+│        Service Layer        │       │   Redis Cache Layer   │
+│  Business logic, balance    │◄─────►│  expenses, incomes,  │
+│  updates, run-rate calcs    │       │  run-rate projections │
+└────────┬────────────────────┘       └──────────────────────┘
+         │
+┌────────▼────────────────────────────────────────────────────┐
+│                  Spring Data JPA Repositories               │
+│              (AccountRepository, TransactionRepository, …)  │
+└────────┬────────────────────────────────────────────────────┘
+         │                              │
+┌────────▼──────────┐        ┌──────────▼────────────────────┐
+│      MySQL DB      │        │     Apache Kafka              │
+│  (JPA ddl=update)  │        │  topic: lifem.transactions    │
+└───────────────────┘        └───────────────────────────────┘
 ```
 
-**Key flows:**
-
-- Recording income or an expense payment updates the linked account balance, persists a `TransactionEntity`, and publishes a `TransactionEvent` to Kafka — all within a single `@Transactional` boundary.
-- Account read operations are served from Redis when cached; any write (create, update, delete, transfer, balance change) evicts the relevant cache entries.
-- The Kafka consumer maintains an in-memory ordered log of received `TransactionEvent`s, queryable via `GET /transactions/events`.
-
----
-
-## Domain Modules
-
-### Accounts
-Bank, cash, and wallet accounts. Each account has a `BigDecimal` balance, a category (`AccountCategory`), and a type (`AccountType`).
-
-### Income
-Income sources with frequency tracking (weekly, bi-weekly, monthly, quarterly, yearly, one-time). Can be linked to an account and "received" to post a transaction and update the balance.
-
-### Expenses
-Recurring and one-time expenses. Can be linked to an account and "paid" to post a transaction and deduct from the balance.
-
-### Transactions
-Immutable ledger entries. Every financial action (pay expense, receive income, transfer) creates one or more `TransactionEntity` records with a system-generated 10-character reference number. Each transaction also publishes a Kafka event.
-
-### Calendar Events
-Scheduled personal events with start/end times. Supports range queries (`GET /calendar/events/range`).
-
-### Events
-General personal events with category and frequency tracking.
-
-### Passwords
-AES-encrypted credential storage. The `TextEncryptor` is configured in `EncryptionConfig` using key + salt from `application.properties`. Values are encrypted at rest and decrypted on retrieval.
+**Key design decisions:**
+- All controller endpoints return `ResponseEntity<CustomResponse<T>>` — a uniform JSON envelope with `success`, `statusCode`, `message`, and `data` fields, with `null` fields omitted from serialization
+- The transaction ledger is the single source of truth for all money movements; balance changes always produce a matching ledger entry
+- Cache eviction is performed granularly per operation (e.g. `updateIncome` evicts `incomeById:{id}` and `incomes` but not unrelated caches) to minimize cold reads
 
 ---
 
-## REST API Reference
+## API Documentation
 
-All responses follow the `ApiResponse<T>` envelope:
+The full interactive API documentation is available live via Swagger UI:
+
+**[http://idnaheim.com:8080/swagger-ui/index.html](http://idnaheim.com:8080/swagger-ui/index.html)**
+
+All endpoints are browsable, executable, and documented with request/response schemas directly in the UI. Every response follows a consistent JSON envelope:
 
 ```json
 {
-  "status": 200,
+  "success": true,
+  "statusCode": 200,
   "message": "Success",
   "data": { ... }
 }
 ```
-
-### Accounts — `/accounts`
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/accounts` | List all accounts (cached) |
-| GET | `/accounts/{id}` | Get account by ID (cached) |
-| POST | `/accounts` | Create account |
-| PUT | `/accounts/{id}` | Update account |
-| DELETE | `/accounts/{id}` | Delete account |
-| POST | `/accounts/transfer` | Transfer between accounts |
-
-**Transfer request body:**
-```json
-{
-  "fromAccountId": 1,
-  "toAccountId": 2,
-  "amount": 500.00
-}
-```
-
----
-
-### Transactions — `/transactions`
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/transactions` | List all transactions |
-| GET | `/transactions/{id}` | Get transaction by ID |
-| POST | `/transactions` | Create raw transaction |
-| PUT | `/transactions/{id}` | Update transaction |
-| DELETE | `/transactions/{id}` | Delete and reverse balance |
-| POST | `/transactions/expense` | Record expense payment → deducts balance + Kafka event |
-| POST | `/transactions/income` | Record income receipt → adds balance + Kafka event |
-| GET | `/transactions/events` | View in-memory Kafka event log (newest first) |
-
-**Record expense/income request body:**
-```json
-{
-  "accountId": 1,
-  "amount": 250.00,
-  "category": "FOOD",
-  "remarks": "Grocery run",
-  "expenseId": 5
-}
-```
-
----
-
-### Income — `/incomes`
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/incomes` | List all income sources |
-| GET | `/incomes/active` | List active income sources |
-| GET | `/incomes/{id}` | Get income by ID |
-| POST | `/incomes` | Create income source |
-| PUT | `/incomes/{id}` | Update income source |
-| DELETE | `/incomes/{id}` | Delete income source |
-| POST | `/incomes/{id}/receive` | Receive income → updates account balance |
-
-**Receive income params:** `?accountId=1&amount=5000.00&remarks=Salary`
-
----
-
-### Expenses — `/expenses`
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/expenses` | List all expenses |
-| GET | `/expenses/runrate` | Get monthly run-rate calculation |
-| GET | `/expenses/{id}` | Get expense by ID |
-| POST | `/expenses` | Create expense |
-| PUT | `/expenses/{id}` | Update expense |
-| DELETE | `/expenses/{id}` | Delete expense |
-| POST | `/expenses/{id}/pay` | Pay expense → deducts account balance |
-
-**Pay expense params:** `?accountId=1&amount=100.00&remarks=Electric bill`
-
----
-
-### Calendar Events — `/calendar/events`
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/calendar/events` | List all calendar events |
-| GET | `/calendar/events/{id}` | Get event by ID |
-| GET | `/calendar/events/range` | Get events in a time range |
-| POST | `/calendar/events` | Create calendar event |
-| PUT | `/calendar/events/{id}` | Update calendar event |
-| DELETE | `/calendar/events/{id}` | Delete calendar event |
-
-**Range query params:** `?start=2026-01-01T00:00:00Z&end=2026-01-31T23:59:59Z`
-
----
-
-### Events — `/events`
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/events` | List all events |
-| GET | `/events/{id}` | Get event by ID |
-| POST | `/events` | Create event |
-| PUT | `/events/{id}` | Update event |
-| DELETE | `/events/{id}` | Delete event |
-
----
-
-### Passwords — `/passwords`
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/passwords` | List all credentials (values decrypted) |
-| GET | `/passwords/{id}` | Get credential by ID |
-| POST | `/passwords` | Store new credential (auto-encrypted) |
-| PUT | `/passwords/{id}` | Update credential |
-| DELETE | `/passwords/{id}` | Delete credential |
-
----
-
-## Kafka Integration
-
-Kafka is used to publish a `TransactionEvent` every time income is received or an expense is paid. This provides a decoupled, replayable event stream for any downstream processing.
-
-### Topic
-
-| Topic | Partitions | Replicas |
-|---|---|---|
-| `lifem.transactions` | 1 | 1 |
-
-The topic name is configurable via `kafka.topic.transactions` in `application.properties`.
-
-### TransactionEvent Schema
-
-```json
-{
-  "id": 42,
-  "referenceNo": "TXN-A1B2C3",
-  "accountId": 1,
-  "accountName": "BDO Savings",
-  "category": "FOOD",
-  "type": "EXPENSE",
-  "amount": -250.00,
-  "remarks": "Grocery run",
-  "createdBy": "SYSTEM",
-  "createdDate": "2026-08-16T10:30:00"
-}
-```
-
-### Producer
-
-`TransactionEventProducer` publishes events asynchronously using a `KafkaTemplate<String, TransactionEvent>`. The message key is the `referenceNo`, ensuring ordered delivery per transaction. Producer settings:
-
-- `acks=all` — waits for full ISR acknowledgement before confirming
-- `retries=3` — automatic retry on transient failures
-- JSON serialization, no type headers
-
-### Consumer
-
-`TransactionEventConsumer` listens on the `lifem.transactions` topic with consumer group `lifem-consumer-group`. Consumed events are stored in a thread-safe `CopyOnWriteArrayList` as an in-memory log. Query the log via:
-
-```
-GET /transactions/events
-```
-
-Returns events newest-first. Note: this in-memory log is reset on restart — it is intended for short-term observability, not durable storage.
-
-### Configuration
-
-```properties
-spring.kafka.bootstrap-servers=localhost:9092
-spring.kafka.consumer.group-id=lifem-consumer-group
-spring.kafka.consumer.auto-offset-reset=earliest
-kafka.topic.transactions=lifem.transactions
-```
-
----
-
-## Redis Caching
-
-Account data is cached in Redis to reduce repeated database reads.
-
-### Cached Operations
-
-| Cache Name | Trigger | TTL |
-|---|---|---|
-| `accounts` | `GET /accounts` (list all) | 5 minutes |
-| `accountById` | `GET /accounts/{id}` | 5 minutes |
-
-### Cache Invalidation
-
-Any operation that changes account state evicts the relevant cache entries:
-
-- Create, update, delete account → evicts both `accounts` and `accountById`
-- Account transfer → evicts both caches (both accounts change)
-- Recording income/expense (balance change) → evicts both caches
-
-### Configuration
-
-```properties
-spring.cache.type=redis
-spring.data.redis.host=localhost
-spring.data.redis.port=6379
-spring.data.redis.password=
-cache.accounts.ttl-minutes=5
-```
-
-Adjust `cache.accounts.ttl-minutes` to tune cache lifetime without code changes.
 
 ---
 
@@ -334,148 +143,148 @@ Adjust `cache.accounts.ttl-minutes` to tune cache lifetime without code changes.
 
 | Enum | Values |
 |---|---|
-| `AccountCategory` | `BANK`, `CASH`, `WALLET`, `INVESTMENT`, etc. |
-| `AccountType` | `SAVINGS`, `CHECKING`, `CREDIT`, etc. |
-| `IncomeFrequency` | `WEEKLY`, `BI_WEEKLY`, `MONTHLY`, `QUARTERLY`, `YEARLY`, `ONE_TIME` |
-| `ExpenseFrequency` | Same values as `IncomeFrequency` |
-| `ExpenseCategory` | `FOOD`, `UTILITIES`, `TRANSPORT`, `ENTERTAINMENT`, etc. |
-| `IncomeCategory` | `SALARY`, `FREELANCE`, `BUSINESS`, `INVESTMENT`, etc. |
-| `TransactionType` | `INCOME`, `EXPENSE`, `TRANSFER` |
-| `TransactionCategory` | Shared categories across income/expense/transfer |
-| `EventCategory` | Personal event categories |
-| `EventFrequency` | Recurrence options for events |
+| `EnumAccountCategory` | `BANK`, `CASH`, `E_WALLET` |
+| `EnumAccountType` | `SAVINGS`, `CHECKING`, `CURRENT`, `CREDIT`, `INVESTMENT` |
+| `EnumBaseCategory` | `HOUSING`, `CAR`, `FOOD`, `OFFICE`, `LEISURE`, `HEALTH`, `OTHER`, `TRAVEL`, `SHOPPING`, `SALARY`, `INVESTMENT`, `INTEREST`, `PERSONAL`, `WORK`, `FINANCE` |
+| `EnumBaseFrequency` | `ONCE`, `DAILY`, `WEEKLY`, `MONTHLY`, `QUARTERLY`, `BIYEARLY`, `YEARLY`, `UNPLANNED` |
+| `EnumTransactionType` | `INCOME`, `EXPENSE`, `TRANSFER` |
 
-All enums are stored as `STRING` in the database.
+All enums are stored as strings in the database (`@Enumerated(EnumType.STRING)`).
 
 ### Audit Fields
 
-Every entity extends `AuditingEntity`, which automatically populates:
+Every entity extends `AuditingEntity` and automatically carries:
 
-| Field | Type | Notes |
+| Field | Type | Description |
 |---|---|---|
-| `createdBy` | `String` | Set once on insert; currently always `"SYSTEM"` |
-| `createdDate` | `LocalDateTime` | Set once on insert |
-| `modifiedBy` | `String` | Updated on every save |
-| `modifiedDate` | `LocalDateTime` | Updated on every save |
+| `createdBy` | String | Set to `"SYSTEM"` (auth placeholder) |
+| `createdDate` | LocalDateTime | Set on first persist |
+| `modifiedBy` | String | Updated on every save |
+| `modifiedDate` | LocalDateTime | Updated on every save |
 
 ---
 
 ## Configuration
 
-All configuration lives in `src/main/resources/application.properties`. Key properties:
+All sensitive and environment-specific values are externalized. The following environment variables are consumed at runtime:
 
+| Variable | Description | Default (dev) |
+|---|---|---|
+| `SPRING_DATASOURCE_URL` | JDBC connection URL | `jdbc:mysql://localhost:3306/lifem_test` |
+| `SPRING_DATASOURCE_USERNAME` | DB username | `root` |
+| `SPRING_DATASOURCE_PASSWORD` | DB password | — |
+| `ENCRYPTION_PASSWORD` | AES key for password vault | — |
+| `ENCRYPTION_SALT` | Hex salt for AES encryption | — |
+| `SPRING_DATA_REDIS_HOST` | Redis hostname | `localhost` |
+| `SPRING_DATA_REDIS_PORT` | Redis port | `6379` |
+| `SPRING_KAFKA_BOOTSTRAP_SERVERS` | Kafka broker address | `localhost:9092` |
+| `TZ` | Container timezone | `Asia/Manila` |
+
+**Cache TTLs** are tunable via application properties (defaults to 5 minutes each):
 ```properties
-# Database
-spring.datasource.url=jdbc:mysql://localhost:3307/lifem_test?...&serverTimezone=Asia/Manila
-spring.datasource.username=root
-spring.datasource.password=<your-password>
-spring.jpa.hibernate.ddl-auto=update
-
-# Encryption (AES)
-encryption.password=<your-key>
-encryption.salt=<your-salt>
-
-# Server
-server.port=8080
-application.timezone=GMT+08:00
-
-# Redis
-spring.cache.type=redis
-spring.data.redis.host=localhost
-spring.data.redis.port=6379
-cache.accounts.ttl-minutes=5
-
-# Kafka
-spring.kafka.bootstrap-servers=localhost:9092
-spring.kafka.consumer.group-id=lifem-consumer-group
-kafka.topic.transactions=lifem.transactions
+cache.expenses.ttl-minutes=5
+cache.incomes.ttl-minutes=5
 ```
 
-> **Before deploying:** replace database credentials, encryption key/salt, and tighten CORS settings in `WebConfig`.
+**Kafka topic** is auto-created on startup:
+```properties
+kafka.topic.transactions=lifem.transactions  # 1 partition, 1 replica
+```
 
 ---
 
-## Running the Application
+## Getting Started
 
 ### Prerequisites
 
 - Java 21
-- MySQL running on port `3306` (or `3307` — match your `datasource.url`)
-- Redis running on port `6379`
-- Apache Kafka running on port `9092`
+- Maven (or use the included `mvnw` wrapper)
+- MySQL 8
+- Redis
+- Apache Kafka
 
-### Local setup
+### Local Development
 
-1. Create the database:
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-org/backend-lifem.git
+   cd backend-lifem
+   ```
+
+2. **Set up the database:**
    ```sql
-   CREATE DATABASE lifem_test;
+   CREATE DATABASE lifem;
    ```
 
-2. Start Redis (example with Docker):
+3. **Configure `application.properties`** (or export environment variables) with your local MySQL credentials, Redis host, Kafka broker, and encryption keys.
+
+4. **Run the application:**
    ```bash
-   docker run -d -p 6379:6379 redis:7-alpine
-   ```
+   # Windows
+   mvnw.cmd spring-boot:run
 
-3. Start Kafka (example with Docker):
-   ```bash
-   docker run -d -p 9092:9092 \
-     -e KAFKA_NODE_ID=1 \
-     -e KAFKA_PROCESS_ROLES=broker,controller \
-     -e KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
-     -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
-     -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
-     -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
-     -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
-     apache/kafka:latest
-   ```
-
-4. Update `application.properties` with your credentials.
-
-5. Build and run:
-   ```bash
-   # Build (skip tests)
-   ./mvnw clean package -DskipTests
-
-   # Run
+   # macOS / Linux
    ./mvnw spring-boot:run
    ```
 
-The API will be available at `http://localhost:8080`.
+5. **Access Swagger UI:** `http://localhost:8080/swagger-ui/index.html`
 
-### Common Commands
+**Other useful commands:**
 
 ```bash
-# Build
+# Build fat JAR (skipping tests)
 ./mvnw clean package -DskipTests
-
-# Run
-./mvnw spring-boot:run
 
 # Run tests
 ./mvnw test
+
+# Generate openapi.yml (requires the app to be running on :8080)
+./mvnw integration-test
+# Output: openapi.yml at project root
+```
+
+### Docker
+
+The `Dockerfile` uses a two-stage build:
+- **Stage 1** — Maven build on `eclipse-temurin:21-jdk-jammy`, with dependency caching for faster rebuilds
+- **Stage 2** — Minimal runtime on `eclipse-temurin:21-jre-jammy`, copies only the fat JAR
+
+```bash
+# Build the image
+docker build -t lifem-api .
+
+# Run with environment variables
+docker run -d \
+  -p 8080:8080 \
+  -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/lifem \
+  -e SPRING_DATASOURCE_USERNAME=root \
+  -e SPRING_DATASOURCE_PASSWORD=your_password \
+  -e ENCRYPTION_PASSWORD=your_key \
+  -e ENCRYPTION_SALT=your_salt \
+  --name lifem-api \
+  lifem-api
+```
+
+> **Note:** Redis and Kafka are not included in `docker-compose.yml` — they are expected to be running on the host or a separate service. The compose file orchestrates the API backend and the frontend only.
+
+```bash
+# Full stack with frontend (expects Redis and Kafka on host)
+docker-compose up --build
 ```
 
 ---
 
-## Docker
+## CI/CD
 
-The `Dockerfile` uses a two-stage build:
+The project deploys via **Azure Pipelines** on every push to the `deployments` branch. The pipeline:
 
-1. **Stage 1 (builder):** `eclipse-temurin:21-jdk-jammy` — runs `mvnw clean package -DskipTests`
-2. **Stage 2 (runtime):** `eclipse-temurin:21-jre-jammy` — copies the fat JAR and exposes port 8080
+1. Stops and removes the existing `api` container
+2. Ensures the shared `lifem-net` Docker network exists (used for frontend-to-API communication)
+3. Builds a fresh Docker image tagged `api:latest`
+4. Starts the new container with production environment variables pointing to Azure Database for MySQL
+5. Waits 15 seconds and verifies the container started successfully via `docker logs`
 
-```bash
-# Build image
-docker build -t lifem .
-
-# Run container
-# (expects MySQL on host port 3307, Redis and Kafka on default ports)
-docker run -p 8080:8080 \
-  -e SPRING_DATASOURCE_URL="jdbc:mysql://host.docker.internal:3307/lifem_test?..." \
-  -e SPRING_DATA_REDIS_HOST=host.docker.internal \
-  -e SPRING_KAFKA_BOOTSTRAP_SERVERS=host.docker.internal:9092 \
-  lifem
-```
+The self-hosted agent runs on the deployment server, making zero-downtime swaps straightforward.
 
 ---
 
@@ -483,22 +292,41 @@ docker run -p 8080:8080 \
 
 ```
 backend-lifem/
-├── src/main/java/com/idnaheim/lifem/
-│   ├── account/             # AccountEntity, AccountService, AccountController
-│   │                          AccountRepository, AccountResponse, TransferRequest
-│   ├── calendar/            # CalendarEventEntity, service, controller, repository
-│   ├── config/              # CORS, auditing, encryption, cache (Redis), Kafka producer/consumer/topic
-│   ├── enums/               # All shared enums (account, income, expense, transaction, event)
-│   ├── events/              # General event management
-│   ├── expense/             # Expense tracking with pay action
-│   ├── income/              # Income tracking with receive action
-│   ├── messaging/           # TransactionEvent (record), TransactionEventProducer, TransactionEventConsumer
-│   ├── password/            # AES-encrypted credential storage
-│   ├── transaction/         # Transaction ledger; recordExpense / recordIncome publish to Kafka
-│   ├── utilities/           # AuditingEntity base class, ApiResponse record
-│   └── LifemApplication.java
-├── src/main/resources/
-│   └── application.properties
+├── src/
+│   └── main/
+│       ├── java/com/idnaheim/lifem/
+│       │   ├── account/          # Account CRUD + inter-account transfers
+│       │   ├── calendar/         # Personal events with time-range queries
+│       │   ├── config/           # @Configuration classes (cache, Kafka, encryption, CORS, OpenAPI)
+│       │   ├── enums/            # Shared domain enums
+│       │   ├── expense/          # Expense CRUD + pay action + run-rate projections
+│       │   ├── income/           # Income CRUD + receive action + run-rate projections
+│       │   ├── messaging/        # Kafka TransactionEvent record + producer
+│       │   ├── password/         # AES-encrypted credential vault
+│       │   ├── transaction/      # Immutable ledger with auto-generated reference numbers
+│       │   ├── utilities/        # AuditingEntity base class + CustomResponse envelope
+│       │   └── LifemApplication.java
+│       └── resources/
+│           └── application.properties
 ├── Dockerfile
+├── docker-compose.yml
+├── azure-pipelines.yml
 └── pom.xml
 ```
+
+Each domain package follows a consistent file convention:
+
+| File | Purpose |
+|---|---|
+| `{Domain}Entity.java` | JPA entity, extends `AuditingEntity` |
+| `{Domain}Repository.java` | `JpaRepository<Entity, Long>` interface |
+| `{Domain}Service.java` | Business logic — `@Service @AllArgsConstructor` |
+| `{Domain}Controller.java` | REST controller — `@RestController @AllArgsConstructor` |
+| `{Domain}Request.java` | Inbound DTO |
+| `{Domain}Response.java` | Outbound DTO with static `fromEntity()` factory |
+
+---
+
+## License
+
+This project is for personal and portfolio use. Contact the author for licensing inquiries.
